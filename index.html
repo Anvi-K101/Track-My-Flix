@@ -80,7 +80,7 @@
                         
                         <div class="action-buttons">
                             <div class="btn-group w-100" role="group">
-                                <a href="/details/{{ 'movie' if item.title else 'tv' }}/{{ item.id }}" 
+                                <a href="/details/{% if item.title %}movie{% else %}tv{% endif %}/{{ item.id }}"  
                                    class="btn btn-sm btn-primary">
                                     <i class="fas fa-eye"></i>
                                 </a>
