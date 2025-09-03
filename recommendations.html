@@ -1,0 +1,1182 @@
+#!/usr/bin/env python3
+"""
+FlixTracker - Professional Movie & TV Show Management System
+Features: Runtime calculation, progress tracking, watchlists, recommendations, statistics
+"""
+
+from flask import Flask, render_template, request, jsonify, session, send_file, redirect, url_for, flash
+import requests
+import datetime
+import json
+import csv
+import io
+import os
+from typing import Dict, List, Tuple, Optional
+import pandas as pd
+from werkzeug.utils import secure_filename
+import plotly.graph_objects as go
+import plotly.express as px
+from plotly.subplots import make_subplots
+import plotly.utils
+
+app = Flask(__name__)
+app.secret_key = 'your-secret-key-change-this-in-production'
+
+# TMDb API Configuration
+API_KEY = "47aa3b4def8767b97ea958e92b233aec"
+ACCESS_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0N2FhM2I0ZGVmODc2N2I5N2VhOTU4ZTkyYjIzM2FlYyIsIm5iZiI6MTc1MzU4NTA3MS4yMjIwMDAxLCJzdWIiOiI2ODg1OTVhZmZiNDE4YjFhYzEzOGY2YTciLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.6dfVkYzjkrLLh7072uq-iMe8D2FoPeFCiZXKtfGVrCI"
+BASE_URL = "https://api.themoviedb.org/3"
+
+class RuntimeCalculator:
+    """Enhanced API communication class with comprehensive content fetching"""
+    
+    def __init__(self, api_key: str, access_token: str):
+        self.api_key = api_key
+        self.access_token = access_token
+        self.headers = {
+            "accept": "application/json",
+            "Authorization": f"Bearer {access_token}"
+        }
+    
+    def _make_request(self, endpoint: str, params: Optional[Dict] = None) -> Optional[Dict]:
+        """Make a secure API request with error handling"""
+        url = f"{BASE_URL}/{endpoint}"
+        try:
+            response = requests.get(url, params=params, headers=self.headers, timeout=10)
+            response.raise_for_status()
+            return response.json()
+        except requests.RequestException as e:
+            print(f"API request failed: {e}")
+            return None
+    
+    def search_multi(self, query: str, page: int = 1) -> Optional[Dict]:
+        """Enhanced multi-search with pagination"""
+        return self._make_request("search/multi", {
+            "query": query,
+            "include_adult": False,
+            "page": page
+        })
+    
+    def search_by_genre(self, media_type: str, genre_id: int, page: int = 1) -> Optional[Dict]:
+        """Search content by genre"""
+        return self._make_request(f"discover/{media_type}", {
+            "with_genres": genre_id,
+            "page": page,
+            "sort_by": "popularity.desc"
+        })
+    
+    def search_by_year(self, media_type: str, year: int, page: int = 1) -> Optional[Dict]:
+        """Search content by year"""
+        params = {"page": page, "sort_by": "popularity.desc"}
+        if media_type == "movie":
+            params["year"] = year
+        else:
+            params["first_air_date_year"] = year
+        return self._make_request(f"discover/{media_type}", params)
+    
+    def get_recommendations(self, media_type: str, media_id: int) -> List[Dict]:
+        """Get recommendations for a specific title"""
+        data = self._make_request(f"{media_type}/{media_id}/recommendations")
+        return data.get('results', []) if data else []
+    
+    def get_similar(self, media_type: str, media_id: int) -> List[Dict]:
+        """Get similar titles"""
+        data = self._make_request(f"{media_type}/{media_id}/similar")
+        return data.get('results', []) if data else []
+    
+    def get_person_details(self, person_id: int) -> Dict:
+        """Get person/actor details"""
+        return self._make_request(f"person/{person_id}", {
+            "append_to_response": "movie_credits,tv_credits,images"
+        }) or {}
+    
+    def get_genres(self, media_type: str) -> List[Dict]:
+        """Get list of genres"""
+        data = self._make_request(f"genre/{media_type}/list")
+        return data.get('genres', []) if data else []
+    
+    def get_top_rated(self, media_type: str, page: int = 1) -> List[Dict]:
+        """Get top rated content"""
+        data = self._make_request(f"{media_type}/top_rated", {"page": page})
+        return data.get('results', []) if data else []
+    
+    def get_upcoming_movies(self, page: int = 1) -> List[Dict]:
+        """Get upcoming movies"""
+        data = self._make_request("movie/upcoming", {"page": page})
+        return data.get('results', []) if data else []
+    
+    def get_airing_today_tv(self, page: int = 1) -> List[Dict]:
+        """Get TV shows airing today"""
+        data = self._make_request("tv/airing_today", {"page": page})
+        return data.get('results', []) if data else []
+    
+    def get_movie_details(self, movie_id: int) -> Dict:
+        """Get comprehensive movie details"""
+        movie_data = self._make_request(f"movie/{movie_id}", {
+            "append_to_response": "credits,keywords,reviews,videos,similar,recommendations,watch/providers,releases,translations"
+        })
+        if movie_data:
+            movie_data['media_type'] = 'movie'
+        return movie_data or {}
+    
+    def get_tv_details(self, tv_id: int) -> Dict:
+        """Get comprehensive TV show details"""
+        tv_data = self._make_request(f"tv/{tv_id}", {
+            "append_to_response": "credits,keywords,content_ratings,videos,similar,recommendations,watch/providers,external_ids,translations"
+        })
+        if tv_data:
+            tv_data['media_type'] = 'tv'
+        return tv_data or {}
+    
+    def get_season_details(self, tv_id: int, season_number: int) -> Dict:
+        """Get detailed season information"""
+        return self._make_request(f"tv/{tv_id}/season/{season_number}", {
+            "append_to_response": "credits,videos,external_ids"
+        }) or {}
+    
+    def get_trending(self, media_type: str = 'all', time_window: str = 'day') -> List[Dict]:
+        """Get trending content"""
+        data = self._make_request(f"trending/{media_type}/{time_window}")
+        results = data.get('results', []) if data else []
+        
+        # Add media_type if not present
+        for item in results:
+            if 'media_type' not in item:
+                if 'title' in item:
+                    item['media_type'] = 'movie'
+                elif 'name' in item:
+                    item['media_type'] = 'tv'
+        
+        return results
+    
+    def get_popular(self, media_type: str = 'movie', page: int = 1) -> List[Dict]:
+        """Get popular content"""
+        data = self._make_request(f"{media_type}/popular", {"page": page})
+        results = data.get('results', []) if data else []
+        
+        # Add media_type to results
+        for item in results:
+            item['media_type'] = media_type
+        
+        return results
+
+class AdvancedWatchlistManager:
+    """Advanced watchlist with ratings, notes, and statistics"""
+    
+    @staticmethod
+    def initialize_all():
+        """Initialize all watchlist categories"""
+        categories = [
+            'watchlist_watching', 'watchlist_want_to_watch', 'watchlist_completed',
+            'watchlist_dropped', 'watchlist_favorites', 'user_ratings', 'viewing_history'
+        ]
+        for category in categories:
+            if category not in session:
+                session[category] = []
+    
+    @staticmethod
+    def add_to_watchlist(media_data: Dict, list_type: str, user_rating: float = 0, notes: str = ""):
+        """Enhanced add to watchlist with ratings and notes"""
+        AdvancedWatchlistManager.initialize_all()
+        
+        # Ensure media_type is set correctly
+        if 'media_type' not in media_data:
+            if 'title' in media_data:
+                media_data['media_type'] = 'movie'
+            elif 'name' in media_data:
+                media_data['media_type'] = 'tv'
+        
+        item = {
+            'id': media_data.get('id'),
+            'title': media_data.get('title') or media_data.get('name'),
+            'original_title': media_data.get('original_title') or media_data.get('original_name', ''),
+            'media_type': media_data.get('media_type'),
+            'poster_path': media_data.get('poster_path'),
+            'year': media_data.get('release_date', '')[:4] if media_data.get('release_date') else media_data.get('first_air_date', '')[:4],
+            'language': media_data.get('original_language', 'en').upper(),
+            'added_date': datetime.datetime.now().strftime('%Y-%m-%d %H:%M'),
+            'user_rating': user_rating,
+            'notes': notes,
+            'runtime': media_data.get('runtime', 0),
+            'genres': [g['name'] if isinstance(g, dict) else g for g in media_data.get('genres', [])],
+            'tmdb_rating': media_data.get('vote_average', 0),
+            'is_custom': False
+        }
+        
+        target_list_key = f'watchlist_{list_type}'
+        
+        # Remove from other lists first
+        for category in ['watching', 'want_to_watch', 'completed', 'dropped']:
+            if category != list_type:
+                current_list = session.get(f'watchlist_{category}', [])
+                session[f'watchlist_{category}'] = [
+                    i for i in current_list
+                    if str(i['id']) != str(item['id'])
+                ]
+        
+        # Check if item already exists in target list
+        existing_items = session.get(target_list_key, [])
+        if any(str(existing_item['id']) == str(item['id']) for existing_item in existing_items):
+            return False
+        
+        if target_list_key not in session:
+            session[target_list_key] = []
+        session[target_list_key].append(item)
+        
+        # Add to viewing history
+        if 'viewing_history' not in session:
+            session['viewing_history'] = []
+        history_item = {**item, 'action': f'Added to {list_type}', 'timestamp': datetime.datetime.now().isoformat()}
+        session['viewing_history'].append(history_item)
+        
+        session.modified = True
+        return True
+    
+    @staticmethod
+    def get_statistics() -> Dict:
+        """Get comprehensive watchlist statistics"""
+        AdvancedWatchlistManager.initialize_all()
+        
+        stats = {
+            'total_items': 0,
+            'total_runtime_minutes': 0,
+            'by_status': {},
+            'by_genre': {},
+            'by_year': {},
+            'by_rating': {},
+            'average_user_rating': 0,
+            'average_tmdb_rating': 0,
+            'completion_rate': 0
+        }
+        
+        all_items = []
+        for category in ['watching', 'want_to_watch', 'completed', 'dropped', 'favorites']:
+            items = session.get(f'watchlist_{category}', [])
+            all_items.extend(items)
+            stats['by_status'][category] = len(items)
+        
+        stats['total_items'] = len(all_items)
+        
+        if all_items:
+            stats['total_runtime_minutes'] = sum(item.get('runtime', 0) for item in all_items)
+            
+            # Genre distribution
+            for item in all_items:
+                for genre in item.get('genres', []):
+                    stats['by_genre'][genre] = stats['by_genre'].get(genre, 0) + 1
+            
+            # Year distribution
+            for item in all_items:
+                year = item.get('year', 'Unknown')
+                if year:
+                    stats['by_year'][year] = stats['by_year'].get(year, 0) + 1
+            
+            # Rating distribution
+            rated_items = [item for item in all_items if item.get('user_rating', 0) > 0]
+            if rated_items:
+                stats['average_user_rating'] = sum(item['user_rating'] for item in rated_items) / len(rated_items)
+            
+            tmdb_rated_items = [item for item in all_items if item.get('tmdb_rating', 0) > 0]
+            if tmdb_rated_items:
+                stats['average_tmdb_rating'] = sum(item['tmdb_rating'] for item in tmdb_rated_items) / len(tmdb_rated_items)
+            
+            # Completion rate
+            completed = stats['by_status'].get('completed', 0)
+            total_started = completed + stats['by_status'].get('watching', 0) + stats['by_status'].get('dropped', 0)
+            if total_started > 0:
+                stats['completion_rate'] = (completed / total_started) * 100
+        
+        return stats
+
+class RecommendationEngine:
+    """AI-powered recommendation system"""
+    
+    @staticmethod
+    def get_personalized_recommendations(calculator: RuntimeCalculator, limit: int = 10) -> List[Dict]:
+        """Get personalized recommendations based on user's watchlist"""
+        AdvancedWatchlistManager.initialize_all()
+        
+        # Analyze user preferences
+        all_items = []
+        for category in ['completed', 'favorites', 'watching']:
+            all_items.extend(session.get(f'watchlist_{category}', []))
+        
+        if not all_items:
+            # Return popular content if no history
+            movies = calculator.get_popular('movie', 1)[:5]
+            tv_shows = calculator.get_popular('tv', 1)[:5]
+            return movies + tv_shows
+        
+        # Get favorite genres
+        genre_count = {}
+        for item in all_items:
+            for genre in item.get('genres', []):
+                genre_count[genre] = genre_count.get(genre, 0) + 1
+        
+        # Get recommendations based on favorite items
+        recommendations = []
+        processed_items = 0
+        
+        for item in all_items:
+            if processed_items >= 5:  # Limit to prevent too many API calls
+                break
+                
+            if item.get('id') and item.get('media_type'):
+                try:
+                    recs = calculator.get_recommendations(item['media_type'], item['id'])
+                    recommendations.extend(recs)
+                    processed_items += 1
+                except Exception as e:
+                    print(f"Error getting recommendations for {item.get('title', 'Unknown')}: {e}")
+                    continue
+        
+        # If we don't have enough recommendations, add popular content
+        if len(recommendations) < limit:
+            try:
+                popular_movies = calculator.get_popular('movie', 1)[:5]
+                popular_tv = calculator.get_popular('tv', 1)[:5]
+                recommendations.extend(popular_movies + popular_tv)
+            except Exception as e:
+                print(f"Error getting popular content: {e}")
+        
+        # Remove duplicates and already watched
+        seen_ids = {str(item['id']) for item in all_items}
+        unique_recs = []
+        rec_ids = set()
+        
+        for rec in recommendations:
+            rec_id = str(rec.get('id', ''))
+            if rec_id and rec_id not in seen_ids and rec_id not in rec_ids:
+                rec_ids.add(rec_id)
+                # Ensure media_type is set
+                if 'media_type' not in rec:
+                    if 'title' in rec:
+                        rec['media_type'] = 'movie'
+                    elif 'name' in rec:
+                        rec['media_type'] = 'tv'
+                unique_recs.append(rec)
+                if len(unique_recs) >= limit:
+                    break
+        
+        return unique_recs
+
+class AdvancedFeatures:
+    """Collection of advanced features"""
+    
+    @staticmethod
+    def export_watchlist(format_type: str = 'csv') -> str:
+        """Export watchlist to various formats"""
+        AdvancedWatchlistManager.initialize_all()
+        
+        all_items = []
+        for category in ['watching', 'want_to_watch', 'completed', 'dropped', 'favorites']:
+            items = session.get(f'watchlist_{category}', [])
+            for item in items:
+                item_copy = item.copy()
+                item_copy['status'] = category
+                all_items.append(item_copy)
+        
+        if format_type == 'csv':
+            output = io.StringIO()
+            writer = csv.writer(output)
+            
+            # Headers
+            headers = ['Title', 'Original Title', 'Type', 'Year', 'Status', 'User Rating', 
+                      'TMDb Rating', 'Runtime (min)', 'Genres', 'Language', 'Added Date', 'Notes']
+            writer.writerow(headers)
+            
+            # Data
+            for item in all_items:
+                writer.writerow([
+                    item.get('title', ''),
+                    item.get('original_title', ''),
+                    item.get('media_type', ''),
+                    item.get('year', ''),
+                    item.get('status', ''),
+                    item.get('user_rating', 0),
+                    item.get('tmdb_rating', 0),
+                    item.get('runtime', 0),
+                    ', '.join(item.get('genres', [])),
+                    item.get('language', ''),
+                    item.get('added_date', ''),
+                    item.get('notes', '')
+                ])
+            
+            return output.getvalue()
+        
+        elif format_type == 'json':
+            return json.dumps(all_items, indent=2, default=str)
+
+# Initialize calculator
+calculator = RuntimeCalculator(API_KEY, ACCESS_TOKEN)
+
+# Utility Functions
+def format_time(minutes: int) -> str:
+    """Convert minutes to readable format"""
+    if minutes < 60:
+        return f"{minutes}m"
+    hours = minutes // 60
+    mins = minutes % 60
+    if hours >= 24:
+        days = hours // 24
+        hours = hours % 24
+        return f"{days}d {hours}h {mins}m"
+    return f"{hours}h {mins}m"
+
+def format_detailed_time(total_minutes: int) -> str:
+    """Convert minutes to detailed format"""
+    hours = total_minutes // 60
+    minutes = total_minutes % 60
+    return f"{hours:02d}:{minutes:02d}:00"
+
+def get_color_by_rating(rating: float) -> str:
+    """Get color based on rating"""
+    if rating >= 8.5: return "#FFD700"
+    elif rating >= 7.5: return "#32CD32"
+    elif rating >= 6.5: return "#87CEEB"
+    elif rating >= 5.5: return "#FFA500"
+    elif rating >= 4.0: return "#FF6347"
+    else: return "#DC143C"
+
+def get_tv_runtime_data(tv_id: int, seasons: int) -> Tuple[int, List[Dict]]:
+    """Get comprehensive TV show runtime data"""
+    total_runtime = 0
+    season_data = []
+    
+    # Limit seasons to prevent too many API calls
+    max_seasons = min(seasons, 10)
+    
+    for season_num in range(1, max_seasons + 1):
+        try:
+            season_details = calculator.get_season_details(tv_id, season_num)
+            episodes = season_details.get('episodes', [])
+            
+            season_runtime = 0
+            episode_data = []
+            
+            for episode in episodes:
+                runtime = episode.get('runtime', 45)  # Default to 45 min if not available
+                season_runtime += runtime
+                total_runtime += runtime
+                
+                episode_data.append({
+                    'episode_number': episode.get('episode_number', 0),
+                    'name': episode.get('name', 'Unknown'),
+                    'runtime': runtime,
+                    'air_date': episode.get('air_date', ''),
+                    'overview': episode.get('overview', '')
+                })
+            
+            season_data.append({
+                'season_number': season_num,
+                'episode_count': len(episodes),
+                'total_runtime': season_runtime,
+                'episodes': episode_data,
+                'average_runtime': season_runtime / len(episodes) if episodes else 45
+            })
+            
+        except Exception as e:
+            print(f"Could not load Season {season_num} data: {e}")
+            # Add estimated data for missing seasons
+            estimated_episodes = 20  # Default estimate
+            estimated_runtime_per_episode = 45
+            season_runtime = estimated_episodes * estimated_runtime_per_episode
+            total_runtime += season_runtime
+            
+            season_data.append({
+                'season_number': season_num,
+                'episode_count': estimated_episodes,
+                'total_runtime': season_runtime,
+                'episodes': [],
+                'average_runtime': estimated_runtime_per_episode
+            })
+    
+    return total_runtime, season_data
+
+def find_available_port(start_port=5001, max_attempts=10):
+    """Find an available port starting from start_port"""
+    import socket
+    
+    for port in range(start_port, start_port + max_attempts):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind(('localhost', port))
+                return port
+        except OSError:
+            continue
+    
+    return None
+
+# Routes
+@app.route('/')
+def index():
+    """Main dashboard"""
+    AdvancedWatchlistManager.initialize_all()
+    stats = AdvancedWatchlistManager.get_statistics()
+    
+    try:
+        trending = calculator.get_trending('all', 'day')[:4]
+        top_rated = calculator.get_top_rated('movie', 1)[:4]
+    except Exception as e:
+        print(f"Error fetching trending/top rated: {e}")
+        trending = []
+        top_rated = []
+    
+    recommendations = []
+    if stats['total_items'] > 0:
+        try:
+            recommendations = RecommendationEngine.get_personalized_recommendations(calculator, 6)
+        except Exception as e:
+            print(f"Error getting recommendations: {e}")
+    
+    return render_template('index.html', 
+                         stats=stats, 
+                         trending=trending, 
+                         top_rated=top_rated,
+                         recommendations=recommendations,
+                         format_time=format_time)
+
+@app.route('/search')
+def search():
+    """Search interface"""
+    query = request.args.get('q', '')
+    search_type = request.args.get('type', 'all')
+    page = int(request.args.get('page', 1))
+    
+    results = []
+    total_pages = 0
+    
+    if query:
+        try:
+            search_data = calculator.search_multi(query, page)
+            if search_data:
+                results = search_data.get('results', [])
+                total_pages = search_data.get('total_pages', 0)
+                
+                # Filter by search type
+                if search_type != 'all':
+                    type_map = {'movies': 'movie', 'tv': 'tv', 'people': 'person'}
+                    results = [r for r in results if r.get('media_type') == type_map.get(search_type)]
+        except Exception as e:
+            print(f"Search error: {e}")
+            flash('Search temporarily unavailable. Please try again.', 'error')
+    
+    return render_template('search.html', 
+                         query=query, 
+                         search_type=search_type,
+                         results=results, 
+                         current_page=page,
+                         total_pages=total_pages)
+
+@app.route('/details/<media_type>/<int:media_id>')
+def details(media_type, media_id):
+    """Media details page"""
+    try:
+        if media_type == 'movie':
+            media_data = calculator.get_movie_details(media_id)
+        elif media_type == 'tv':
+            media_data = calculator.get_tv_details(media_id)
+        else:
+            return redirect(url_for('index'))
+        
+        if not media_data:
+            flash('Media not found', 'error')
+            return redirect(url_for('index'))
+        
+        # Get recommendations and similar
+        recommendations = calculator.get_recommendations(media_type, media_id)[:8]
+        similar = calculator.get_similar(media_type, media_id)[:8]
+        
+        # Get season data for TV shows
+        season_data = []
+        total_runtime = 0
+        if media_type == 'tv' and media_data.get('number_of_seasons'):
+            total_runtime, season_data = get_tv_runtime_data(media_id, media_data['number_of_seasons'])
+        elif media_type == 'movie':
+            total_runtime = media_data.get('runtime', 0)
+        
+        return render_template('details.html', 
+                             media=media_data,
+                             recommendations=recommendations,
+                             similar=similar,
+                             season_data=season_data,
+                             total_runtime=total_runtime,
+                             format_time=format_time,
+                             get_color_by_rating=get_color_by_rating)
+                             
+    except Exception as e:
+        print(f"Error loading details: {e}")
+        flash('Error loading media details', 'error')
+        return redirect(url_for('index'))
+
+@app.route('/watchlist')
+def watchlist():
+    """Watchlist page"""
+    AdvancedWatchlistManager.initialize_all()
+    stats = AdvancedWatchlistManager.get_statistics()
+    
+    categories = {
+        'watching': session.get('watchlist_watching', []),
+        'want_to_watch': session.get('watchlist_want_to_watch', []),
+        'completed': session.get('watchlist_completed', []),
+        'dropped': session.get('watchlist_dropped', []),
+        'favorites': session.get('watchlist_favorites', [])
+    }
+    
+    return render_template('watchlist.html', 
+                         categories=categories,
+                         stats=stats,
+                         format_time=format_time)
+
+@app.route('/statistics')
+def statistics():
+    """Statistics page with charts"""
+    AdvancedWatchlistManager.initialize_all()
+    stats = AdvancedWatchlistManager.get_statistics()
+    
+    # Create charts
+    charts = {}
+    
+    try:
+        if stats['by_status']:
+            # Status distribution pie chart
+            fig_status = px.pie(
+                values=list(stats['by_status'].values()),
+                names=list(stats['by_status'].keys()),
+                title="Watchlist Distribution",
+                color_discrete_sequence=px.colors.qualitative.Dark24
+            )
+            fig_status.update_layout(
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)',
+                font_color='white'
+            )
+            charts['status'] = json.dumps(fig_status, cls=plotly.utils.PlotlyJSONEncoder)
+        
+        if stats['by_genre']:
+            # Genre distribution bar chart
+            top_genres = dict(sorted(stats['by_genre'].items(), key=lambda x: x[1], reverse=True)[:10])
+            fig_genre = px.bar(
+                x=list(top_genres.values()),
+                y=list(top_genres.keys()),
+                orientation='h',
+                title="Top Genres",
+                color_discrete_sequence=['#0d6efd']
+            )
+            fig_genre.update_layout(
+                yaxis={'categoryorder': 'total ascending'},
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)',
+                font_color='white'
+            )
+            charts['genre'] = json.dumps(fig_genre, cls=plotly.utils.PlotlyJSONEncoder)
+        
+        if stats['by_year']:
+            # Year distribution
+            years_data = {k: v for k, v in stats['by_year'].items() if k != 'Unknown' and k.isdigit()}
+            if years_data:
+                fig_year = px.line(
+                    x=list(years_data.keys()),
+                    y=list(years_data.values()),
+                    title="Content by Year",
+                    color_discrete_sequence=['#0d6efd']
+                )
+                fig_year.update_layout(
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    font_color='white'
+                )
+                charts['year'] = json.dumps(fig_year, cls=plotly.utils.PlotlyJSONEncoder)
+    except Exception as e:
+        print(f"Error creating charts: {e}")
+    
+    return render_template('statistics.html', 
+                         stats=stats,
+                         charts=charts,
+                         format_time=format_time)
+
+@app.route('/recommendations')
+def recommendations():
+    """Recommendations page"""
+    try:
+        recommendations = RecommendationEngine.get_personalized_recommendations(calculator, 20)
+    except Exception as e:
+        print(f"Error getting recommendations: {e}")
+        recommendations = []
+        flash('Unable to load recommendations at this time', 'error')
+    
+    return render_template('recommendations.html', recommendations=recommendations)
+
+@app.route('/trending')
+def trending():
+    """Trending content page"""
+    try:
+        trending_today = calculator.get_trending('all', 'day')[:12]
+        trending_week = calculator.get_trending('all', 'week')[:12]
+        trending_movies = calculator.get_trending('movie', 'week')[:12]
+        trending_tv = calculator.get_trending('tv', 'week')[:12]
+    except Exception as e:
+        print(f"Error getting trending data: {e}")
+        trending_today = []
+        trending_week = []
+        trending_movies = []
+        trending_tv = []
+        flash('Unable to load trending content at this time', 'error')
+    
+    return render_template('trending.html',
+                         trending_today=trending_today,
+                         trending_week=trending_week,
+                         trending_movies=trending_movies,
+                         trending_tv=trending_tv)
+
+@app.route('/scheduler/<media_type>/<int:media_id>')
+def scheduler(media_type, media_id):
+    """Enhanced viewing scheduler"""
+    try:
+        if media_type == 'movie':
+            media_data = calculator.get_movie_details(media_id)
+            total_runtime = media_data.get('runtime', 0)
+            season_data = []
+        elif media_type == 'tv':
+            media_data = calculator.get_tv_details(media_id)
+            if media_data.get('number_of_seasons'):
+                total_runtime, season_data = get_tv_runtime_data(media_id, media_data['number_of_seasons'])
+            else:
+                total_runtime = 0
+                season_data = []
+        else:
+            return redirect(url_for('index'))
+        
+        if not media_data:
+            flash('Media not found', 'error')
+            return redirect(url_for('index'))
+        
+        return render_template('scheduler.html',
+                             media=media_data,
+                             total_runtime=total_runtime,
+                             season_data=season_data,
+                             format_time=format_time)
+    except Exception as e:
+        print(f"Error loading scheduler: {e}")
+        flash('Error loading scheduler', 'error')
+        return redirect(url_for('index'))
+
+@app.route('/person/<int:person_id>')
+def person_details(person_id):
+    """Person/actor details"""
+    try:
+        person_data = calculator.get_person_details(person_id)
+        if not person_data:
+            flash('Person not found', 'error')
+            return redirect(url_for('index'))
+        
+        # Process credits
+        movie_credits = person_data.get('movie_credits', {}).get('cast', [])[:10]
+        tv_credits = person_data.get('tv_credits', {}).get('cast', [])[:10]
+        
+        return render_template('person.html',
+                             person=person_data,
+                             movie_credits=movie_credits,
+                             tv_credits=tv_credits)
+    except Exception as e:
+        print(f"Error loading person details: {e}")
+        flash('Error loading person details', 'error')
+        return redirect(url_for('index'))
+
+# API Routes
+@app.route('/api/add_to_watchlist', methods=['POST'])
+def api_add_to_watchlist():
+    """API endpoint to add item to watchlist"""
+    try:
+        data = request.get_json()
+        
+        if not data or 'media_data' not in data or 'list_type' not in data:
+            return jsonify({'success': False, 'message': 'Invalid data'})
+        
+        media_data = data['media_data']
+        list_type = data['list_type']
+        user_rating = data.get('user_rating', 0)
+        notes = data.get('notes', '')
+        
+        success = AdvancedWatchlistManager.add_to_watchlist(media_data, list_type, user_rating, notes)
+        
+        if success:
+            return jsonify({'success': True, 'message': 'Added to watchlist successfully'})
+        else:
+            return jsonify({'success': False, 'message': 'Item already in list'})
+    except Exception as e:
+        print(f"Error adding to watchlist: {e}")
+        return jsonify({'success': False, 'message': 'Error adding to watchlist'})
+
+@app.route('/api/remove_from_watchlist', methods=['POST'])
+def api_remove_from_watchlist():
+    """API endpoint to remove item from watchlist"""
+    try:
+        data = request.get_json()
+        
+        if not data or 'item_id' not in data or 'list_type' not in data:
+            return jsonify({'success': False, 'message': 'Invalid data'})
+        
+        item_id = str(data['item_id'])
+        list_type = data['list_type']
+        list_key = f'watchlist_{list_type}'
+        
+        if list_key in session:
+            session[list_key] = [
+                item for item in session[list_key]
+                if str(item['id']) != item_id
+            ]
+            session.modified = True
+            return jsonify({'success': True, 'message': 'Item removed successfully'})
+        
+        return jsonify({'success': False, 'message': 'Item not found'})
+    except Exception as e:
+        print(f"Error removing from watchlist: {e}")
+        return jsonify({'success': False, 'message': 'Error removing item'})
+
+@app.route('/api/update_rating', methods=['POST'])
+def api_update_rating():
+    """API endpoint to update item rating"""
+    try:
+        data = request.get_json()
+        
+        if not data or 'item_id' not in data or 'list_type' not in data or 'rating' not in data:
+            return jsonify({'success': False, 'message': 'Invalid data'})
+        
+        item_id = str(data['item_id'])
+        list_type = data['list_type']
+        rating = float(data['rating'])
+        notes = data.get('notes', '')
+        list_key = f'watchlist_{list_type}'
+        
+        if list_key in session:
+            for i, item in enumerate(session[list_key]):
+                if str(item['id']) == item_id:
+                    session[list_key][i]['user_rating'] = rating
+                    session[list_key][i]['notes'] = notes
+                    session.modified = True
+                    return jsonify({'success': True, 'message': 'Rating updated successfully'})
+        
+        return jsonify({'success': False, 'message': 'Item not found'})
+    except Exception as e:
+        print(f"Error updating rating: {e}")
+        return jsonify({'success': False, 'message': 'Error updating rating'})
+
+@app.route('/api/calculate_schedule', methods=['POST'])
+def api_calculate_schedule():
+    """Enhanced API endpoint to calculate viewing schedule"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'success': False, 'message': 'Invalid data'})
+        
+        total_minutes = data.get('total_minutes', 0)
+        watched_minutes = data.get('watched_minutes', 0)
+        schedule_type = data.get('schedule_type', 'daily')
+        
+        remaining_minutes = total_minutes - watched_minutes
+        schedule_data = {'total_minutes': total_minutes, 'remaining_minutes': remaining_minutes}
+        
+        if schedule_type == 'daily':
+            daily_hours = data.get('daily_hours', 2.0)
+            daily_minutes = daily_hours * 60
+            
+            days_to_finish = remaining_minutes / daily_minutes if daily_minutes > 0 else 0
+            weeks_to_finish = days_to_finish / 7
+            
+            finish_date = (datetime.date.today() + datetime.timedelta(days=int(days_to_finish))).isoformat()
+            
+            schedule_data.update({
+                'type': 'daily',
+                'daily_hours': daily_hours,
+                'days_to_finish': round(days_to_finish, 1),
+                'weeks_to_finish': round(weeks_to_finish, 1),
+                'finish_date': finish_date,
+                'sessions_needed': int(remaining_minutes / daily_minutes) if daily_minutes > 0 else 0
+            })
+        
+        elif schedule_type == 'target_date':
+            target_date_str = data.get('target_date')
+            if target_date_str:
+                target_date = datetime.datetime.strptime(target_date_str, '%Y-%m-%d').date()
+                days_until_target = (target_date - datetime.date.today()).days
+                
+                if days_until_target > 0:
+                    required_daily_minutes = remaining_minutes / days_until_target
+                    required_daily_hours = required_daily_minutes / 60
+                    
+                    schedule_data.update({
+                        'type': 'target_date',
+                        'target_date': target_date_str,
+                        'days_until_target': days_until_target,
+                        'required_daily_hours': round(required_daily_hours, 1),
+                        'required_daily_minutes': int(required_daily_minutes),
+                        'achievable': required_daily_hours <= 8
+                    })
+        
+        elif schedule_type == 'binge':
+            max_daily_hours = data.get('max_daily_hours', 8)
+            max_daily_minutes = max_daily_hours * 60
+            
+            binge_days = max(1, int(remaining_minutes / max_daily_minutes))
+            hours_per_day = remaining_minutes / (binge_days * 60)
+            
+            schedule_data.update({
+                'type': 'binge',
+                'binge_days': binge_days,
+                'hours_per_day': round(hours_per_day, 1),
+                'max_daily_hours': max_daily_hours,
+                'finish_date': (datetime.date.today() + datetime.timedelta(days=binge_days)).isoformat()
+            })
+        
+        elif schedule_type == 'episode_based':
+            episodes_per_session = data.get('episodes_per_session', 2)
+            sessions_per_week = data.get('sessions_per_week', 3)
+            avg_episode_length = data.get('avg_episode_length', 45)
+            
+            total_episodes = remaining_minutes / avg_episode_length if avg_episode_length > 0 else 0
+            total_sessions = total_episodes / episodes_per_session if episodes_per_session > 0 else 0
+            weeks_to_finish = total_sessions / sessions_per_week if sessions_per_week > 0 else 0
+            
+            schedule_data.update({
+                'type': 'episode_based',
+                'total_episodes': int(total_episodes),
+                'episodes_per_session': episodes_per_session,
+                'sessions_per_week': sessions_per_week,
+                'total_sessions': int(total_sessions),
+                'weeks_to_finish': round(weeks_to_finish, 1),
+                'avg_episode_length': avg_episode_length
+            })
+        
+        return jsonify({'success': True, 'schedule': schedule_data})
+    except Exception as e:
+        print(f"Error calculating schedule: {e}")
+        return jsonify({'success': False, 'message': 'Error calculating schedule'})
+
+@app.route('/api/search_suggestions')
+def api_search_suggestions():
+    """API endpoint for search suggestions"""
+    try:
+        query = request.args.get('q', '')
+        
+        if len(query) < 2:
+            return jsonify([])
+        
+        suggestions = calculator.search_multi(query, 1)
+        if suggestions and suggestions.get('results'):
+            results = []
+            for item in suggestions['results'][:6]:
+                title = item.get('title') or item.get('name', 'Unknown')
+                media_type = item.get('media_type', 'unknown')
+                year = (item.get('release_date') or item.get('first_air_date', ''))[:4]
+                
+                results.append({
+                    'id': item.get('id'),
+                    'title': title,
+                    'media_type': media_type,
+                    'year': year,
+                    'poster_path': item.get('poster_path'),
+                    'profile_path': item.get('profile_path')
+                })
+            
+            return jsonify(results)
+        
+        return jsonify([])
+    except Exception as e:
+        print(f"Error getting search suggestions: {e}")
+        return jsonify([])
+
+@app.route('/api/export_watchlist/<format_type>')
+def api_export_watchlist(format_type):
+    """API endpoint to export watchlist"""
+    try:
+        if format_type not in ['csv', 'json']:
+            return jsonify({'success': False, 'message': 'Invalid format'})
+        
+        data = AdvancedFeatures.export_watchlist(format_type)
+        
+        if format_type == 'csv':
+            response = app.response_class(
+                data,
+                mimetype='text/csv',
+                headers={'Content-Disposition': 'attachment; filename=watchlist.csv'}
+            )
+        else:
+            response = app.response_class(
+                data,
+                mimetype='application/json',
+                headers={'Content-Disposition': 'attachment; filename=watchlist.json'}
+            )
+        
+        return response
+    except Exception as e:
+        print(f"Error exporting watchlist: {e}")
+        return jsonify({'success': False, 'message': 'Error exporting watchlist'})
+
+@app.route('/api/advanced_search')
+def api_advanced_search():
+    """API endpoint for advanced search"""
+    try:
+        search_type = request.args.get('type', 'genre')
+        media_type = request.args.get('media_type', 'movie')
+        
+        if search_type == 'genre':
+            genre_id = request.args.get('genre_id', type=int)
+            if genre_id:
+                results = calculator.search_by_genre(media_type, genre_id)
+                return jsonify(results.get('results', []) if results else [])
+        
+        elif search_type == 'year':
+            year = request.args.get('year', type=int)
+            if year:
+                results = calculator.search_by_year(media_type, year)
+                return jsonify(results.get('results', []) if results else [])
+        
+        elif search_type == 'top_rated':
+            results = calculator.get_top_rated(media_type)
+            return jsonify(results)
+        
+        elif search_type == 'genres':
+            genres = calculator.get_genres(media_type)
+            return jsonify(genres)
+        
+        return jsonify([])
+    except Exception as e:
+        print(f"Error in advanced search: {e}")
+        return jsonify([])
+
+@app.route('/api/progress_tracker', methods=['POST'])
+def api_progress_tracker():
+    """API endpoint for progress tracking"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'success': False, 'message': 'Invalid data'})
+        
+        media_id = data.get('media_id')
+        media_type = data.get('media_type')
+        progress_type = data.get('progress_type', 'time')
+        
+        if progress_type == 'time':
+            watched_minutes = data.get('watched_minutes', 0)
+            total_minutes = data.get('total_minutes', 0)
+            
+            if total_minutes > 0:
+                progress_pct = (watched_minutes / total_minutes) * 100
+                remaining_minutes = total_minutes - watched_minutes
+                
+                # Save progress to session
+                if 'progress_tracker' not in session:
+                    session['progress_tracker'] = {}
+                
+                session['progress_tracker'][f"{media_type}_{media_id}"] = {
+                    'watched_minutes': watched_minutes,
+                    'total_minutes': total_minutes,
+                    'progress_pct': progress_pct,
+                    'last_updated': datetime.datetime.now().isoformat()
+                }
+                session.modified = True
+                
+                return jsonify({
+                    'success': True,
+                    'progress_pct': round(progress_pct, 1),
+                    'remaining_minutes': remaining_minutes,
+                    'estimated_finish': (datetime.datetime.now() + datetime.timedelta(minutes=remaining_minutes)).isoformat()
+                })
+        
+        elif progress_type == 'episode':
+            current_season = data.get('current_season', 1)
+            current_episode = data.get('current_episode', 1)
+            episode_progress = data.get('episode_progress', 0)
+            season_data = data.get('season_data', [])
+            
+            # Calculate total watched time
+            watched_minutes = 0
+            
+            # Add complete previous seasons
+            for i, season in enumerate(season_data):
+                if season['season_number'] < current_season:
+                    watched_minutes += season['total_runtime']
+            
+            # Add episodes from current season
+            current_season_data = next((s for s in season_data if s['season_number'] == current_season), None)
+            if current_season_data and current_season_data['episodes']:
+                for i, episode in enumerate(current_season_data['episodes']):
+                    if episode['episode_number'] < current_episode:
+                        watched_minutes += episode.get('runtime', 0)
+                    elif episode['episode_number'] == current_episode:
+                        episode_runtime = episode.get('runtime', 0)
+                        watched_minutes += int((episode_progress / 100) * episode_runtime)
+                        break
+            
+            # Save progress
+            if 'progress_tracker' not in session:
+                session['progress_tracker'] = {}
+            
+            session['progress_tracker'][f"{media_type}_{media_id}"] = {
+                'current_season': current_season,
+                'current_episode': current_episode,
+                'episode_progress': episode_progress,
+                'watched_minutes': watched_minutes,
+                'last_updated': datetime.datetime.now().isoformat()
+            }
+            session.modified = True
+            
+            return jsonify({
+                'success': True,
+                'current_position': f"S{current_season}E{current_episode}",
+                'watched_minutes': watched_minutes
+            })
+        
+        return jsonify({'success': False, 'message': 'Invalid progress type'})
+    except Exception as e:
+        print(f"Error tracking progress: {e}")
+        return jsonify({'success': False, 'message': 'Error tracking progress'})
+
+@app.route('/api/get_progress/<media_type>/<int:media_id>')
+def api_get_progress(media_type, media_id):
+    """API endpoint to get saved progress"""
+    try:
+        progress_key = f"{media_type}_{media_id}"
+        
+        if 'progress_tracker' in session and progress_key in session['progress_tracker']:
+            return jsonify({
+                'success': True,
+                'progress': session['progress_tracker'][progress_key]
+            })
+        
+        return jsonify({'success': False, 'message': 'No progress found'})
+    except Exception as e:
+        print(f"Error getting progress: {e}")
+        return jsonify({'success': False, 'message': 'Error getting progress'})
+
+if __name__ == '__main__':
+    import socket
+    
+    def is_port_available(port):
+        """Check if a port is available"""
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind(('localhost', port))
+                return True
+        except OSError:
+            return False
+    
+    # Try ports in order: 5001, 5002, 5003, etc.
+    for port in range(5001, 5010):
+        if is_port_available(port):
+            print(f"\n🎬 Starting FlixTracker - Your Personal Cinema")
+            print(f"🌐 Open your browser to: http://localhost:{port}")
+            print(f"📱 Or try: http://127.0.0.1:{port}")
+            print(f"🚀 Server starting on port {port}...\n")
+            
+            try:
+                app.run(debug=True, host='0.0.0.0', port=port)
+            except KeyboardInterrupt:
+                print(f"\n👋 Server stopped. Thanks for using FlixTracker!")
+            break
+    else:
+        print("❌ No available ports found between 5001-5009")
+        print("💡 Try closing other applications or restart your computer")

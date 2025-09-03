@@ -1,0 +1,442 @@
+{% extends "base.html" %}
+
+{% block title %}About MovieVault - Meet the Creator{% endblock %}
+
+{% block content %}
+<div class="search-container text-white text-center mb-4">
+    <h1 class="display-4 fw-bold glow-text" style="font-family: 'Orbitron', monospace;">👨‍💻 ABOUT MOVIEVAULT</h1>
+    <p class="lead" style="color: var(--text-secondary);">The story behind your favorite entertainment companion</p>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card card-custom">
+            <div class="card-body p-5">
+                <!-- Creator Introduction -->
+                <div class="row mb-5">
+                    <div class="col-md-4 text-center">
+                        <div class="creator-avatar mb-3">
+                            <div class="avatar-placeholder">
+                                <i class="fas fa-user-code fa-5x" style="color: var(--primary-color);"></i>
+                            </div>
+                        </div>
+                        <h3 style="color: var(--primary-color); font-family: 'Orbitron', monospace;">✨ Anvi Karanjkar ✨</h3>
+                        <p style="color: var(--text-secondary); font-weight: 500;">Creator & Developer</p>
+                    </div>
+                    <div class="col-md-8">
+                        <h2 class="glow-text mb-4" style="color: var(--text-primary); font-family: 'Orbitron', monospace;">🎬 MY VISION</h2>
+                        <p style="color: var(--text-primary); font-size: 1.1rem; line-height: 1.7;">
+                            Hi there! I'm Anvi, a passionate developer and entertainment enthusiast who believes that managing your viewing experience should be as enjoyable as the content itself. MovieVault was born from my personal frustration with scattered watchlists, forgotten shows, and the constant question: "What should I watch next?"
+                        </p>
+                        <p style="color: var(--text-primary); font-size: 1.1rem; line-height: 1.7;">
+                            As someone who loves both technology and storytelling, I wanted to create something that combines the precision of modern software with the joy of discovering great entertainment. Every feature in MovieVault reflects my own viewing habits and the challenges I've faced as a dedicated binge-watcher.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Project Story -->
+                <div class="card card-custom mb-5" style="background: var(--glass-bg); border: 2px solid var(--secondary-color);">
+                    <div class="card-header">
+                        <h3 class="mb-0 glow-text" style="color: var(--secondary-color); font-family: 'Orbitron', monospace;">🚀 THE PROJECT STORY</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5 style="color: var(--accent-color); font-family: 'Orbitron', monospace;">💡 The Problem</h5>
+                                <p style="color: var(--text-primary); line-height: 1.6;">
+                                    I found myself juggling multiple apps, notes, and mental lists to track what I was watching. I'd start a series, forget where I left off, lose track of recommendations, and waste time deciding what to watch next. There had to be a better way.
+                                </p>
+                            </div>
+                            <div class="col-md-6">
+                                <h5 style="color: var(--warning-color); font-family: 'Orbitron', monospace;">🎯 The Solution</h5>
+                                <p style="color: var(--text-primary); line-height: 1.6;">
+                                    MovieVault brings everything together in one intelligent platform. From precise progress tracking to smart scheduling, from comprehensive analytics to social sharing - it's the entertainment companion I always wished existed.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Technical Excellence -->
+                <div class="row mb-5">
+                    <div class="col-12">
+                        <h3 class="glow-text mb-4" style="color: var(--accent-color); font-family: 'Orbitron', monospace;">⚙️ TECHNICAL EXCELLENCE</h3>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="tech-feature mb-4">
+                                    <h5 style="color: var(--primary-color); font-family: 'Orbitron', monospace;">🎯 Precision Data</h5>
+                                    <p style="color: var(--text-primary);">
+                                        Every runtime calculation is exact. I've engineered the system to fetch precise episode timings from TMDb's API, giving you accurate progress tracking down to the minute.
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="tech-feature mb-4">
+                                    <h5 style="color: var(--secondary-color); font-family: 'Orbitron', monospace;">🧠 Smart Analytics</h5>
+                                    <p style="color: var(--text-primary);">
+                                        The analytics engine processes your viewing patterns to provide meaningful insights about your entertainment habits and preferences.
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="tech-feature mb-4">
+                                    <h5 style="color: var(--accent-color); font-family: 'Orbitron', monospace;">🎨 Beautiful Design</h5>
+                                    <p style="color: var(--text-primary);">
+                                        Every interface element is crafted for both aesthetics and functionality, with smooth animations and intuitive interactions.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Technology Stack -->
+                <div class="card card-custom mb-5" style="background: var(--glass-bg); border: 2px solid var(--accent-color);">
+                    <div class="card-header">
+                        <h3 class="mb-0 glow-text" style="color: var(--accent-color); font-family: 'Orbitron', monospace;">🛠️ TECHNOLOGY STACK</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <h6 style="color: var(--primary-color);">Backend</h6>
+                                <ul style="color: var(--text-primary); font-size: 0.9rem;">
+                                    <li>Python Flask</li>
+                                    <li>Session Management</li>
+                                    <li>RESTful APIs</li>
+                                    <li>Data Processing</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-3">
+                                <h6 style="color: var(--secondary-color);">Frontend</h6>
+                                <ul style="color: var(--text-primary); font-size: 0.9rem;">
+                                    <li>HTML5 & CSS3</li>
+                                    <li>JavaScript ES6+</li>
+                                    <li>Bootstrap 5</li>
+                                    <li>Responsive Design</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-3">
+                                <h6 style="color: var(--accent-color);">Data & APIs</h6>
+                                <ul style="color: var(--text-primary); font-size: 0.9rem;">
+                                    <li>TMDb API</li>
+                                    <li>Plotly.js Charts</li>
+                                    <li>JSON Processing</li>
+                                    <li>CSV Export</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-3">
+                                <h6 style="color: var(--warning-color);">Features</h6>
+                                <ul style="color: var(--text-primary); font-size: 0.9rem;">
+                                    <li>Real-time Updates</li>
+                                    <li>Smart Caching</li>
+                                    <li>Social Sharing</li>
+                                    <li>Progress Tracking</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Future Vision -->
+                <div class="row mb-5">
+                    <div class="col-12">
+                        <h3 class="glow-text mb-4" style="color: var(--warning-color); font-family: 'Orbitron', monospace;">🔮 FUTURE VISION</h3>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="future-feature mb-3">
+                                    <h6 style="color: var(--primary-color);">🤖 AI Recommendations</h6>
+                                    <p style="color: var(--text-primary); font-size: 0.9rem;">Machine learning algorithms that truly understand your taste</p>
+                                </div>
+                                <div class="future-feature mb-3">
+                                    <h6 style="color: var(--secondary-color);">👥 Social Features</h6>
+                                    <p style="color: var(--text-primary); font-size: 0.9rem;">Connect with friends and share viewing experiences</p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="future-feature mb-3">
+                                    <h6 style="color: var(--accent-color);">📱 Mobile App</h6>
+                                    <p style="color: var(--text-primary); font-size: 0.9rem;">Native mobile experience with offline capabilities</p>
+                                </div>
+                                <div class="future-feature mb-3">
+                                    <h6 style="color: var(--warning-color);">🎮 Gamification</h6>
+                                    <p style="color: var(--text-primary); font-size: 0.9rem;">Achievements, streaks, and viewing challenges</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Connect Section -->
+                <div class="text-center p-4" style="background: var(--glass-bg); border-radius: 15px; border: 2px solid var(--primary-color);">
+                    <h3 class="glow-text mb-3" style="color: var(--primary-color); font-family: 'Orbitron', monospace;">🤝 LET'S CONNECT</h3>
+                    <p style="color: var(--text-primary); font-size: 1.1rem; line-height: 1.6;">
+                        MovieVault is constantly evolving based on user feedback and new ideas. I'm always excited to hear from fellow entertainment enthusiasts and developers. Whether you have suggestions, bug reports, or just want to chat about movies and tech, I'd love to connect!
+                    </p>
+                    <div class="mt-4">
+                        <button class="btn btn-primary-custom me-3" onclick="showContactModal()">
+                            <i class="fas fa-envelope me-2"></i>GET IN TOUCH
+                        </button>
+                        <button class="btn btn-outline-primary" onclick="shareMovieVault()">
+                            <i class="fas fa-share me-2"></i>SHARE MOVIEVAULT
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Contact Modal -->
+<div class="modal fade" id="contactModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title glow-text" style="color: var(--primary-color); font-family: 'Orbitron', monospace;">💌 CONTACT ANVI</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center">
+                    <h6 style="color: var(--text-primary); margin-bottom: 20px;">I'd love to hear from you!</h6>
+                    <div class="d-grid gap-3">
+                        <p style="color: var(--text-secondary);">
+                            Whether you have feedback, suggestions, or just want to say hi, feel free to reach out through any of these channels:
+                        </p>
+                        <div class="contact-options">
+                            <div class="mb-3 p-3 rounded" style="background: var(--glass-bg); border: 1px solid var(--border-color);">
+                                <i class="fas fa-envelope fa-2x mb-2" style="color: var(--primary-color);"></i>
+                                <h6 style="color: var(--text-primary);">Email</h6>
+                                <p style="color: var(--text-secondary); font-size: 0.9rem;">anvi@movievault.com</p>
+                            </div>
+                            <div class="mb-3 p-3 rounded" style="background: var(--glass-bg); border: 1px solid var(--border-color);">
+                                <i class="fab fa-github fa-2x mb-2" style="color: var(--secondary-color);"></i>
+                                <h6 style="color: var(--text-primary);">GitHub</h6>
+                                <p style="color: var(--text-secondary); font-size: 0.9rem;">github.com/anvikaranjkar</p>
+                            </div>
+                            <div class="mb-3 p-3 rounded" style="background: var(--glass-bg); border: 1px solid var(--border-color);">
+                                <i class="fab fa-linkedin fa-2x mb-2" style="color: var(--accent-color);"></i>
+                                <h6 style="color: var(--text-primary);">LinkedIn</h6>
+                                <p style="color: var(--text-secondary); font-size: 0.9rem;">linkedin.com/in/anvikaranjkar</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .avatar-placeholder {
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        background: var(--glass-bg);
+        border: 3px solid var(--primary-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto;
+        transition: all 0.3s ease;
+    }
+    
+    .avatar-placeholder:hover {
+        transform: scale(1.1);
+        box-shadow: 0 0 20px rgba(79, 70, 229, 0.5);
+    }
+    
+    .tech-feature {
+        padding: 20px;
+        background: var(--glass-bg);
+        border-radius: 12px;
+        border: 1px solid var(--border-color);
+        transition: all 0.3s ease;
+    }
+    
+    .tech-feature:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+        border-color: var(--primary-color);
+    }
+    
+    .future-feature {
+        padding: 15px;
+        background: var(--glass-bg);
+        border-radius: 8px;
+        border-left: 3px solid var(--primary-color);
+        transition: all 0.3s ease;
+    }
+    
+    .future-feature:hover {
+        transform: translateX(10px);
+        background: rgba(79, 70, 229, 0.1);
+    }
+    
+    .contact-options .mb-3 {
+        transition: all 0.3s ease;
+    }
+    
+    .contact-options .mb-3:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+    
+    @media (max-width: 768px) {
+        .avatar-placeholder {
+            width: 120px;
+            height: 120px;
+        }
+        
+        .tech-feature {
+            margin-bottom: 20px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function showContactModal() {
+        const modal = new bootstrap.Modal(document.getElementById('contactModal'));
+        modal.show();
+    }
+    
+    function shareMovieVault() {
+        const shareText = "Check out MovieVault - the ultimate entertainment management platform! Track your movies and shows like never before.";
+        const shareUrl = window.location.origin;
+        
+        if (navigator.share) {
+            navigator.share({
+                title: 'MovieVault - Your Entertainment Command Center',
+                text: shareText,
+                url: shareUrl
+            });
+        } else {
+            // Fallback - copy to clipboard
+            const fullText = `${shareText} ${shareUrl}`;
+            navigator.clipboard.writeText(fullText).then(() => {
+                showToast('MovieVault link copied to clipboard!', 'success');
+            }).catch(() => {
+                showToast('Could not copy link', 'error');
+            });
+        }
+    }
+    
+    // Enhanced utility functions for toast notifications
+    function showToast(message, type = 'info') {
+        let toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'toast-container';
+            toastContainer.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                z-index: 9999;
+                max-width: 400px;
+                pointer-events: none;
+            `;
+            document.body.appendChild(toastContainer);
+        }
+        
+        const toast = document.createElement('div');
+        const colors = {
+            success: '#28a745',
+            error: '#dc3545',
+            warning: '#ffc107',
+            info: '#17a2b8'
+        };
+        
+        const icons = {
+            success: 'fas fa-check-circle',
+            error: 'fas fa-exclamation-circle',
+            warning: 'fas fa-exclamation-triangle',
+            info: 'fas fa-info-circle'
+        };
+        
+        toast.style.cssText = `
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 16px 20px;
+            border-radius: 8px;
+            border-left: 4px solid ${colors[type]};
+            margin-bottom: 10px;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            pointer-events: auto;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        `;
+        
+        toast.innerHTML = `
+            <i class="${icons[type]}" style="color: ${colors[type]};"></i>
+            <span>${message}</span>
+            <button onclick="this.parentElement.remove()" style="
+                background: none;
+                border: none;
+                color: #ccc;
+                cursor: pointer;
+                margin-left: 10px;
+                font-size: 18px;
+            ">×</button>
+        `;
+        
+        toastContainer.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.style.transform = 'translateX(0)';
+        }, 100);
+        
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.style.transform = 'translateX(100%)';
+                setTimeout(() => toast.remove(), 300);
+            }
+        }, 5000);
+    }
+    
+    // Add entrance animations
+    document.addEventListener('DOMContentLoaded', function() {
+        const features = document.querySelectorAll('.tech-feature, .future-feature');
+        features.forEach((feature, index) => {
+            feature.style.opacity = '0';
+            feature.style.transform = 'translateY(30px)';
+            
+            setTimeout(() => {
+                feature.style.transition = 'all 0.6s ease';
+                feature.style.opacity = '1';
+                feature.style.transform = 'translateY(0)';
+            }, index * 150);
+        });
+        
+        // Avatar animation
+        const avatar = document.querySelector('.avatar-placeholder');
+        if (avatar) {
+            avatar.addEventListener('click', function() {
+                this.style.animation = 'bounce 0.6s ease';
+                setTimeout(() => {
+                    this.style.animation = '';
+                }, 600);
+            });
+        }
+    });
+    
+    // Add bounce animation
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateY(0) scale(1);
+            }
+            40% {
+                transform: translateY(-10px) scale(1.05);
+            }
+            60% {
+                transform: translateY(-5px) scale(1.02);
+            }
+        }
+    `;
+    document.head.appendChild(style);
+</script>
+{% endblock %}

@@ -1,0 +1,1047 @@
+{% extends "base.html" %}
+
+{% block title %}Track Progress - {{ media.title or media.name }}{% endblock %}
+
+{% block content %}
+<!-- Loading Overlay -->
+<div id="loadingOverlay" style="
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.95);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    backdrop-filter: blur(10px);
+">
+    <div class="loading-spinner">
+        <div class="spinner-ring"></div>
+        <div class="spinner-ring"></div>
+        <div class="spinner-ring"></div>
+    </div>
+    <h3 style="color: var(--primary-color); font-family: 'Orbitron', monospace; margin-top: 20px;">Loading Progress Tracker...</h3>
+    <p style="color: var(--text-secondary);">Preparing your viewing data</p>
+</div>
+
+<div class="search-container text-white mb-4">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h1 class="display-5 fw-bold glow-text" style="font-family: 'Orbitron', monospace;">📊 PROGRESS TRACKER</h1>
+            <h3 class="mb-0" style="color: var(--text-primary);">{{ media.title or media.name }}</h3>
+            {% if media.release_date or media.first_air_date %}
+                <p class="lead mb-0" style="color: var(--text-secondary);">({{ (media.release_date or media.first_air_date)[:4] }})</p>
+            {% endif %}
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="/details/{{ media.media_type }}/{{ media.id }}" class="btn btn-outline-primary">
+                <i class="fas fa-arrow-left"></i> BACK TO DETAILS
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Progress Overview -->
+<div class="row mb-4">
+    {% if media.media_type == 'movie' %}
+    <div class="col-md-3">
+        <div class="stats-card pulse-on-hover">
+            <h3 style="color: var(--primary-color);">{{ format_time(total_runtime) }}</h3>
+            <p style="color: var(--text-primary);">⏰ TOTAL RUNTIME</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card pulse-on-hover">
+            <h3 id="watchedTimeDisplay" style="color: var(--secondary-color);">0m</h3>
+            <p style="color: var(--text-primary);">📺 WATCHED</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card pulse-on-hover">
+            <h3 id="remainingTimeDisplay" style="color: var(--accent-color);">{{ format_time(total_runtime) }}</h3>
+            <p style="color: var(--text-primary);">⏳ REMAINING</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card pulse-on-hover">
+            <h3 id="progressDisplay" style="color: var(--warning-color);">0%</h3>
+            <p style="color: var(--text-primary);">🎯 PROGRESS</p>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-md-3">
+        <div class="stats-card pulse-on-hover">
+            <h3 style="color: var(--primary-color);">{{ media.number_of_seasons or 0 }}</h3>
+            <p style="color: var(--text-primary);">📺 SEASONS</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card pulse-on-hover">
+            <h3 style="color: var(--secondary-color);">{{ media.number_of_episodes or 0 }}</h3>
+            <p style="color: var(--text-primary);">📋 EPISODES</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card pulse-on-hover">
+            <h3 id="currentPositionDisplay" style="color: var(--accent-color);">S1E1</h3>
+            <p style="color: var(--text-primary);">📍 CURRENT</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card pulse-on-hover">
+            <h3 id="tvProgressDisplay" style="color: var(--warning-color);">0%</h3>
+            <p style="color: var(--text-primary);">🎯 PROGRESS</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Progress Tracking Interface -->
+<div class="row">
+    <div class="col-md-8">
+        <div class="card card-custom">
+            <div class="card-header">
+                <h5 class="mb-0 glow-text" style="color: var(--text-primary); font-family: 'Orbitron', monospace;">
+                    {% if media.media_type == 'movie' %}🎬 MOVIE PROGRESS{% else %}📺 TV SHOW PROGRESS{% endif %}
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if media.media_type == 'movie' %}
+                <!-- Movie Progress Tracking -->
+                <div class="mb-4">
+                    <h6 class="glow-text" style="color: var(--text-primary);">CURRENT PROGRESS</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label" style="color: var(--text-primary);">Minutes Watched:</label>
+                            <input type="number" class="form-control progress-input" id="movieWatchedMinutes" 
+                                   min="0" max="{{ total_runtime }}" value="0" 
+                                   onchange="updateMovieProgress()"
+                                   style="background: var(--bg-secondary); border: 2px solid var(--border-color); color: var(--text-primary);">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" style="color: var(--text-primary);">Progress Slider:</label>
+                            <div class="progress-slider-container">
+                                <input type="range" class="progress-slider" id="movieProgressSlider" 
+                                       min="0" max="{{ total_runtime }}" value="0" 
+                                       onchange="updateMovieProgressFromSlider()">
+                                <div class="slider-track">
+                                    <div class="slider-fill" id="movieSliderFill"></div>
+                                    <div class="slider-thumb" id="movieSliderThumb"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="form-label" style="color: var(--text-primary);">Visual Progress:</label>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar-track">
+                            <div class="progress-bar-fill" id="movieMainProgressBar" style="width: 0%;">
+                                <span id="movieProgressText" class="progress-text">0%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <!-- TV Show Progress Tracking -->
+                <div class="mb-4">
+                    <h6 class="glow-text" style="color: var(--text-primary);">CURRENT POSITION</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label" style="color: var(--text-primary);">Current Season:</label>
+                            <select class="form-control progress-input" id="currentSeason" onchange="updateTVProgress()"
+                                    style="background: var(--bg-secondary); border: 2px solid var(--border-color); color: var(--text-primary);">
+                                {% for i in range(1, (media.number_of_seasons or 1) + 1) %}
+                                <option value="{{ i }}">Season {{ i }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" style="color: var(--text-primary);">Current Episode:</label>
+                            <select class="form-control progress-input" id="currentEpisode" onchange="updateTVProgress()"
+                                    style="background: var(--bg-secondary); border: 2px solid var(--border-color); color: var(--text-primary);">
+                                <option value="0">Not started</option>
+                                {% for i in range(1, 21) %}
+                                <option value="{{ i }}">Episode {{ i }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="form-label" style="color: var(--text-primary);">Episode Progress:</label>
+                    <div class="progress-slider-container">
+                        <input type="range" class="progress-slider" id="episodeProgress" 
+                               min="0" max="100" value="0" onchange="updateTVProgress()">
+                        <div class="slider-track">
+                            <div class="slider-fill" id="episodeSliderFill"></div>
+                            <div class="slider-thumb" id="episodeSliderThumb"></div>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between mt-2" style="color: var(--text-muted); font-size: 0.8rem;">
+                        <span>Not Started</span>
+                        <span id="episodeProgressText">0%</span>
+                        <span>Completed</span>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="form-label" style="color: var(--text-primary);">Overall Progress:</label>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar-track">
+                            <div class="progress-bar-fill" id="tvMainProgressBar" style="width: 0%;">
+                                <span id="tvProgressText" class="progress-text">0%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Notes Section -->
+                <div class="mb-4">
+                    <h6 class="glow-text" style="color: var(--text-primary);">VIEWING NOTES</h6>
+                    <textarea class="form-control progress-input" id="viewingNotes" rows="3" 
+                              placeholder="Add your thoughts, favorite scenes, or reminders..."
+                              style="background: var(--bg-secondary); border: 2px solid var(--border-color); color: var(--text-primary);"></textarea>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="text-center">
+                    <button class="btn btn-primary-custom btn-lg me-3" onclick="saveProgress()">
+                        <i class="fas fa-save me-2"></i>SAVE PROGRESS
+                    </button>
+                    <button class="btn btn-outline-success btn-lg me-3" onclick="markAsCompleted()">
+                        <i class="fas fa-check me-2"></i>MARK COMPLETED
+                    </button>
+                    <button class="btn btn-outline-secondary btn-lg" onclick="resetProgress()">
+                        <i class="fas fa-undo me-2"></i>RESET
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <!-- Progress History -->
+        <div class="card card-custom mb-4">
+            <div class="card-header">
+                <h5 class="mb-0 glow-text" style="color: var(--text-primary); font-family: 'Orbitron', monospace;">📈 PROGRESS HISTORY</h5>
+            </div>
+            <div class="card-body">
+                <div id="progressHistory">
+                    <div class="text-center py-4">
+                        <i class="fas fa-history fa-3x mb-3" style="color: var(--text-muted);"></i>
+                        <p style="color: var(--text-muted);">No progress history yet</p>
+                        <small style="color: var(--text-muted);">Start tracking to see your viewing history</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Stats -->
+        <div class="card card-custom">
+            <div class="card-header">
+                <h5 class="mb-0 glow-text" style="color: var(--text-primary); font-family: 'Orbitron', monospace;">⚡ QUICK INSIGHTS</h5>
+            </div>
+            <div class="card-body">
+                <div class="insight-item mb-3" style="background: var(--glass-bg); padding: 15px; border-radius: 8px;">
+                    <h6 style="color: var(--primary-color);">⏱️ Time Investment</h6>
+                    <p id="timeInvestment" style="color: var(--text-primary); margin: 0;">0 minutes watched</p>
+                </div>
+                
+                <div class="insight-item mb-3" style="background: var(--glass-bg); padding: 15px; border-radius: 8px;">
+                    <h6 style="color: var(--secondary-color);">🎯 Completion Rate</h6>
+                    <p id="completionRate" style="color: var(--text-primary); margin: 0;">0% complete</p>
+                </div>
+                
+                <div class="insight-item" style="background: var(--glass-bg); padding: 15px; border-radius: 8px;">
+                    <h6 style="color: var(--accent-color);">⏰ Estimated Finish</h6>
+                    <p id="estimatedFinish" style="color: var(--text-primary); margin: 0;">Not started</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Loading Spinner Styles */
+    .loading-spinner {
+        position: relative;
+        width: 80px;
+        height: 80px;
+    }
+    
+    .spinner-ring {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border: 4px solid transparent;
+        border-top: 4px solid var(--primary-color);
+        border-radius: 50%;
+        animation: spin 1.5s linear infinite;
+    }
+    
+    .spinner-ring:nth-child(2) {
+        border-top-color: var(--secondary-color);
+        animation-delay: -0.5s;
+        width: 60px;
+        height: 60px;
+        top: 10px;
+        left: 10px;
+    }
+    
+    .spinner-ring:nth-child(3) {
+        border-top-color: var(--accent-color);
+        animation-delay: -1s;
+        width: 40px;
+        height: 40px;
+        top: 20px;
+        left: 20px;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    /* Enhanced Progress Elements */
+    .progress-input {
+        transition: all 0.3s ease;
+        border-radius: 8px;
+        padding: 12px 16px;
+    }
+    
+    .progress-input:focus {
+        border-color: var(--primary-color) !important;
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1) !important;
+        outline: none;
+    }
+    
+    .progress-input:hover {
+        border-color: var(--secondary-color) !important;
+        transform: translateY(-1px);
+    }
+    
+    /* Custom Progress Slider */
+    .progress-slider-container {
+        position: relative;
+        height: 40px;
+        display: flex;
+        align-items: center;
+    }
+    
+    .progress-slider {
+        position: absolute;
+        width: 100%;
+        height: 40px;
+        opacity: 0;
+        cursor: pointer;
+        z-index: 2;
+    }
+    
+    .slider-track {
+        position: relative;
+        width: 100%;
+        height: 8px;
+        background: var(--bg-secondary);
+        border-radius: 4px;
+        border: 1px solid var(--border-color);
+    }
+    
+    .slider-fill {
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+        border-radius: 4px;
+        transition: width 0.3s ease;
+        width: 0%;
+    }
+    
+    .slider-thumb {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 18px;
+        height: 18px;
+        background: var(--accent-color);
+        border: 2px solid white;
+        border-radius: 50%;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        transition: all 0.3s ease;
+        left: -9px;
+    }
+    
+    .slider-thumb:hover {
+        transform: translateY(-50%) scale(1.2);
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+    }
+    
+    /* Custom Progress Bar */
+    .progress-bar-container {
+        margin: 20px 0;
+    }
+    
+    .progress-bar-track {
+        position: relative;
+        width: 100%;
+        height: 30px;
+        background: var(--bg-secondary);
+        border-radius: 15px;
+        border: 2px solid var(--border-color);
+        overflow: hidden;
+    }
+    
+    .progress-bar-fill {
+        position: relative;
+        height: 100%;
+        background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+        border-radius: 13px;
+        transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 60px;
+    }
+    
+    .progress-text {
+        color: var(--bg-primary);
+        font-weight: 700;
+        font-family: 'Orbitron', monospace;
+        font-size: 0.9rem;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    }
+    
+    /* Stats Card Pulse Effect */
+    .pulse-on-hover:hover {
+        animation: pulse 1.5s infinite;
+    }
+    
+    @keyframes pulse {
+        0% {
+            box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.7);
+        }
+        70% {
+            box-shadow: 0 0 0 10px rgba(79, 70, 229, 0);
+        }
+        100% {
+            box-shadow: 0 0 0 0 rgba(79, 70, 229, 0);
+        }
+    }
+    
+    /* Insight Items */
+    .insight-item {
+        transition: all 0.3s ease;
+        border: 1px solid var(--border-color);
+    }
+    
+    .insight-item:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        border-color: var(--primary-color);
+    }
+    
+    /* Button Enhancements */
+    .btn {
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+    
+    .btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+        transition: left 0.5s;
+    }
+    
+    .btn:hover::before {
+        left: 100%;
+    }
+    
+    .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+    
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .progress-slider-container {
+            height: 50px;
+        }
+        
+        .slider-thumb {
+            width: 20px;
+            height: 20px;
+            left: -10px;
+        }
+        
+        .progress-bar-track {
+            height: 25px;
+        }
+        
+        .progress-text {
+            font-size: 0.8rem;
+        }
+        
+        .insight-item {
+            margin-bottom: 15px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const mediaData = {{ media|tojson }};
+    const seasonData = {{ season_data|tojson if season_data else '[]' }};
+    const totalRuntime = {{ total_runtime }};
+    let progressHistory = [];
+    
+    // Hide loading overlay
+    document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(() => {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            if (loadingOverlay) {
+                loadingOverlay.style.opacity = '0';
+                setTimeout(() => {
+                    loadingOverlay.style.display = 'none';
+                }, 500);
+            }
+        }, 800);
+        
+        loadSavedProgress();
+        {% if media.media_type == 'tv' %}
+        updateTVProgress();
+        {% else %}
+        updateMovieProgress();
+        {% endif %}
+    });
+    
+    // Movie Progress Functions
+    function updateMovieProgress() {
+        const watchedMinutes = parseInt(document.getElementById('movieWatchedMinutes')?.value || 0);
+        const remaining = totalRuntime - watchedMinutes;
+        const progress = totalRuntime > 0 ? (watchedMinutes / totalRuntime * 100) : 0;
+        
+        // Update displays
+        document.getElementById('watchedTimeDisplay').textContent = formatTime(watchedMinutes);
+        document.getElementById('remainingTimeDisplay').textContent = formatTime(remaining);
+        document.getElementById('progressDisplay').textContent = Math.round(progress) + '%';
+        
+        // Update progress bar
+        const progressBar = document.getElementById('movieMainProgressBar');
+        const progressText = document.getElementById('movieProgressText');
+        const slider = document.getElementById('movieProgressSlider');
+        const sliderFill = document.getElementById('movieSliderFill');
+        const sliderThumb = document.getElementById('movieSliderThumb');
+        
+        if (progressBar) {
+            progressBar.style.width = progress + '%';
+            progressText.textContent = Math.round(progress) + '%';
+        }
+        
+        if (slider) {
+            slider.value = watchedMinutes;
+        }
+        
+        // Update custom slider appearance
+        if (sliderFill && sliderThumb) {
+            const fillPercent = totalRuntime > 0 ? (watchedMinutes / totalRuntime * 100) : 0;
+            sliderFill.style.width = fillPercent + '%';
+            sliderThumb.style.left = `calc(${fillPercent}% - 9px)`;
+        }
+        
+        updateInsights(watchedMinutes, totalRuntime, progress);
+    }
+    
+    function updateMovieProgressFromSlider() {
+        const sliderValue = parseInt(document.getElementById('movieProgressSlider').value);
+        document.getElementById('movieWatchedMinutes').value = sliderValue;
+        updateMovieProgress();
+    }
+    
+    // TV Show Progress Functions
+    function updateTVProgress() {
+        const currentSeason = parseInt(document.getElementById('currentSeason')?.value || 1);
+        const currentEpisode = parseInt(document.getElementById('currentEpisode')?.value || 0);
+        const episodeProgressPercent = parseInt(document.getElementById('episodeProgress')?.value || 0);
+        
+        // Calculate watched minutes
+        let watchedMinutes = 0;
+        
+        // Add complete previous seasons
+        for (let i = 1; i < currentSeason; i++) {
+            const season = seasonData.find(s => s.season_number === i);
+            if (season) {
+                watchedMinutes += season.total_runtime;
+            } else {
+                watchedMinutes += 20 * 45; // Estimate
+            }
+        }
+        
+        // Add episodes from current season
+        const currentSeasonData = seasonData.find(s => s.season_number === currentSeason);
+        if (currentSeasonData && currentSeasonData.episodes) {
+            // Update episode options
+            const episodeSelect = document.getElementById('currentEpisode');
+            episodeSelect.innerHTML = '<option value="0">Not started</option>';
+            for (let i = 1; i <= currentSeasonData.episode_count; i++) {
+                const selected = i === currentEpisode ? 'selected' : '';
+                episodeSelect.innerHTML += `<option value="${i}" ${selected}>Episode ${i}</option>`;
+            }
+            
+            // Calculate watched time
+            for (let i = 1; i < currentEpisode; i++) {
+                const episode = currentSeasonData.episodes.find(e => e.episode_number === i);
+                watchedMinutes += episode ? episode.runtime : 45;
+            }
+            
+            // Add current episode progress
+            if (currentEpisode > 0) {
+                const currentEpisodeData = currentSeasonData.episodes.find(e => e.episode_number === currentEpisode);
+                const episodeRuntime = currentEpisodeData ? currentEpisodeData.runtime : 45;
+                watchedMinutes += Math.round((episodeProgressPercent / 100) * episodeRuntime);
+            }
+        } else {
+            watchedMinutes += (currentEpisode - 1) * 45;
+            if (currentEpisode > 0) {
+                watchedMinutes += Math.round((episodeProgressPercent / 100) * 45);
+            }
+        }
+        
+        const overallProgress = totalRuntime > 0 ? (watchedMinutes / totalRuntime * 100) : 0;
+        
+        // Update displays
+        document.getElementById('currentPositionDisplay').textContent = `S${currentSeason}E${currentEpisode}`;
+        document.getElementById('tvProgressDisplay').textContent = Math.round(overallProgress) + '%';
+        document.getElementById('episodeProgressText').textContent = episodeProgressPercent + '%';
+        
+        // Update progress bar
+        const progressBar = document.getElementById('tvMainProgressBar');
+        const progressText = document.getElementById('tvProgressText');
+        const episodeSliderFill = document.getElementById('episodeSliderFill');
+        const episodeSliderThumb = document.getElementById('episodeSliderThumb');
+        
+        if (progressBar) {
+            progressBar.style.width = overallProgress + '%';
+            progressText.textContent = Math.round(overallProgress) + '%';
+        }
+        
+        // Update episode progress slider appearance
+        if (episodeSliderFill && episodeSliderThumb) {
+            episodeSliderFill.style.width = episodeProgressPercent + '%';
+            episodeSliderThumb.style.left = `calc(${episodeProgressPercent}% - 9px)`;
+        }
+        
+        updateInsights(watchedMinutes, totalRuntime, overallProgress);
+    }
+    
+    // Update insights panel
+    function updateInsights(watchedMinutes, totalMinutes, progressPercent) {
+        const timeInvestment = document.getElementById('timeInvestment');
+        const completionRate = document.getElementById('completionRate');
+        const estimatedFinish = document.getElementById('estimatedFinish');
+        
+        if (timeInvestment) {
+            const hours = Math.floor(watchedMinutes / 60);
+            const mins = watchedMinutes % 60;
+            if (hours > 0) {
+                timeInvestment.textContent = `${hours}h ${mins}m watched`;
+            } else {
+                timeInvestment.textContent = `${mins}m watched`;
+            }
+        }
+        
+        if (completionRate) {
+            completionRate.textContent = `${Math.round(progressPercent)}% complete`;
+        }
+        
+        if (estimatedFinish) {
+            const remainingMinutes = totalMinutes - watchedMinutes;
+            if (remainingMinutes <= 0) {
+                estimatedFinish.textContent = "Completed!";
+            } else if (watchedMinutes === 0) {
+                estimatedFinish.textContent = "Not started";
+            } else {
+                const remainingHours = Math.floor(remainingMinutes / 60);
+                const remainingMins = remainingMinutes % 60;
+                if (remainingHours > 0) {
+                    estimatedFinish.textContent = `${remainingHours}h ${remainingMins}m remaining`;
+                } else {
+                    estimatedFinish.textContent = `${remainingMins}m remaining`;
+                }
+            }
+        }
+    }
+    
+    // Save progress
+    async function saveProgress() {
+        const progressData = {
+            media_id: mediaData.id,
+            media_type: mediaData.media_type,
+            notes: document.getElementById('viewingNotes').value
+        };
+        
+        if (mediaData.media_type === 'movie') {
+            progressData.watched_minutes = parseInt(document.getElementById('movieWatchedMinutes').value || 0);
+            progressData.total_minutes = totalRuntime;
+        } else {
+            progressData.current_season = parseInt(document.getElementById('currentSeason').value || 1);
+            progressData.current_episode = parseInt(document.getElementById('currentEpisode').value || 0);
+            progressData.episode_progress = parseInt(document.getElementById('episodeProgress').value || 0);
+            progressData.season_data = seasonData;
+        }
+        
+        showLoading();
+        
+        try {
+            const response = await fetch('/api/track_progress', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(progressData)
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showToast('Progress saved successfully!', 'success');
+                addToProgressHistory(progressData);
+                updateProgressHistoryDisplay();
+            } else {
+                showToast('Error saving progress: ' + result.message, 'error');
+            }
+        } catch (error) {
+            showToast('Error saving progress', 'error');
+            console.error('Error:', error);
+        }
+        
+        hideLoading();
+    }
+    
+    // Mark as completed
+    async function markAsCompleted() {
+        if (!confirm('Mark this as completed? This will add it to your completed list.')) {
+            return;
+        }
+        
+        showLoading();
+        
+        try {
+            // Add to watchlist as completed
+            const response = await fetch('/api/add_to_watchlist', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    media_data: mediaData,
+                    list_type: 'completed',
+                    user_rating: 0,
+                    notes: document.getElementById('viewingNotes').value
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // Set progress to 100%
+                if (mediaData.media_type === 'movie') {
+                    document.getElementById('movieWatchedMinutes').value = totalRuntime;
+                    updateMovieProgress();
+                } else {
+                    const lastSeason = Math.max(...seasonData.map(s => s.season_number));
+                    const lastSeasonData = seasonData.find(s => s.season_number === lastSeason);
+                    const lastEpisode = lastSeasonData ? lastSeasonData.episode_count : 20;
+                    
+                    document.getElementById('currentSeason').value = lastSeason;
+                    document.getElementById('currentEpisode').value = lastEpisode;
+                    document.getElementById('episodeProgress').value = 100;
+                    updateTVProgress();
+                }
+                
+                await saveProgress();
+                showToast('Marked as completed!', 'success');
+            } else {
+                showToast('Error marking as completed: ' + result.message, 'error');
+            }
+        } catch (error) {
+            showToast('Error marking as completed', 'error');
+            console.error('Error:', error);
+        }
+        
+        hideLoading();
+    }
+    
+    // Reset progress
+    function resetProgress() {
+        if (!confirm('Reset all progress? This cannot be undone.')) {
+            return;
+        }
+        
+        if (mediaData.media_type === 'movie') {
+            document.getElementById('movieWatchedMinutes').value = 0;
+            updateMovieProgress();
+        } else {
+            document.getElementById('currentSeason').value = 1;
+            document.getElementById('currentEpisode').value = 0;
+            document.getElementById('episodeProgress').value = 0;
+            updateTVProgress();
+        }
+        
+        document.getElementById('viewingNotes').value = '';
+        showToast('Progress reset', 'info');
+    }
+    
+    // Progress history functions
+    function addToProgressHistory(progressData) {
+        const historyItem = {
+            timestamp: new Date().toISOString(),
+            ...progressData
+        };
+        
+        progressHistory.unshift(historyItem);
+        if (progressHistory.length > 10) {
+            progressHistory = progressHistory.slice(0, 10);
+        }
+        
+        localStorage.setItem(`progress_history_${mediaData.id}`, JSON.stringify(progressHistory));
+    }
+    
+    function updateProgressHistoryDisplay() {
+        const historyContainer = document.getElementById('progressHistory');
+        
+        if (progressHistory.length === 0) {
+            historyContainer.innerHTML = `
+                <div class="text-center py-4">
+                    <i class="fas fa-history fa-3x mb-3" style="color: var(--text-muted);"></i>
+                    <p style="color: var(--text-muted);">No progress history yet</p>
+                    <small style="color: var(--text-muted);">Start tracking to see your viewing history</small>
+                </div>
+            `;
+            return;
+        }
+        
+        const historyHtml = progressHistory.map((item, index) => {
+            const date = new Date(item.timestamp);
+            const timeStr = date.toLocaleString();
+            
+            let progressText = '';
+            if (mediaData.media_type === 'movie') {
+                const percent = Math.round((item.watched_minutes / item.total_minutes) * 100);
+                progressText = `${percent}% (${formatTime(item.watched_minutes)})`;
+            } else {
+                progressText = `S${item.current_season}E${item.current_episode}`;
+                if (item.episode_progress > 0) {
+                    progressText += ` (${item.episode_progress}%)`;
+                }
+            }
+            
+            return `
+                <div class="history-item mb-3 p-3 rounded" style="background: var(--glass-bg); border: 1px solid var(--border-color); transition: all 0.3s ease;">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 style="color: var(--primary-color); margin: 0; font-size: 0.9rem;">${progressText}</h6>
+                            <small style="color: var(--text-muted);">${timeStr}</small>
+                        </div>
+                        <i class="fas fa-clock" style="color: var(--secondary-color);"></i>
+                    </div>
+                    ${item.notes ? `<p style="color: var(--text-primary); font-size: 0.8rem; margin: 5px 0 0 0;">"${item.notes}"</p>` : ''}
+                </div>
+            `;
+        }).join('');
+        
+        historyContainer.innerHTML = historyHtml;
+        
+        // Add hover effects to history items
+        const historyItems = historyContainer.querySelectorAll('.history-item');
+        historyItems.forEach(item => {
+            item.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-2px)';
+                this.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.2)';
+                this.style.borderColor = 'var(--primary-color)';
+            });
+            
+            item.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0)';
+                this.style.boxShadow = '';
+                this.style.borderColor = 'var(--border-color)';
+            });
+        });
+    }
+    
+    // Load saved progress
+    function loadSavedProgress() {
+        try {
+            const saved = localStorage.getItem(`progress_history_${mediaData.id}`);
+            if (saved) {
+                progressHistory = JSON.parse(saved);
+                updateProgressHistoryDisplay();
+                
+                // Load the most recent progress
+                if (progressHistory.length > 0) {
+                    const latest = progressHistory[0];
+                    if (mediaData.media_type === 'movie' && latest.watched_minutes !== undefined) {
+                        document.getElementById('movieWatchedMinutes').value = latest.watched_minutes;
+                        updateMovieProgress();
+                    } else if (mediaData.media_type === 'tv') {
+                        if (latest.current_season) {
+                            document.getElementById('currentSeason').value = latest.current_season;
+                        }
+                        if (latest.current_episode !== undefined) {
+                            document.getElementById('currentEpisode').value = latest.current_episode;
+                        }
+                        if (latest.episode_progress !== undefined) {
+                            document.getElementById('episodeProgress').value = latest.episode_progress;
+                        }
+                        updateTVProgress();
+                    }
+                    
+                    if (latest.notes) {
+                        document.getElementById('viewingNotes').value = latest.notes;
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error loading saved progress:', error);
+        }
+    }
+    
+    // Utility functions
+    function formatTime(minutes) {
+        if (!minutes || minutes <= 0) return '0m';
+        const hours = Math.floor(minutes / 60);
+        const mins = minutes % 60;
+        return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+    }
+    
+    function showLoading() {
+        document.body.style.cursor = 'wait';
+    }
+    
+    function hideLoading() {
+        document.body.style.cursor = 'default';
+    }
+    
+    function showToast(message, type = 'info') {
+        let toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'toast-container';
+            toastContainer.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                z-index: 9999;
+                max-width: 400px;
+                pointer-events: none;
+            `;
+            document.body.appendChild(toastContainer);
+        }
+        
+        const toast = document.createElement('div');
+        const colors = {
+            success: '#28a745',
+            error: '#dc3545',
+            warning: '#ffc107',
+            info: '#17a2b8'
+        };
+        
+        const icons = {
+            success: 'fas fa-check-circle',
+            error: 'fas fa-exclamation-circle',
+            warning: 'fas fa-exclamation-triangle',
+            info: 'fas fa-info-circle'
+        };
+        
+        toast.style.cssText = `
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 16px 20px;
+            border-radius: 8px;
+            border-left: 4px solid ${colors[type]};
+            margin-bottom: 10px;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            pointer-events: auto;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        `;
+        
+        toast.innerHTML = `
+            <i class="${icons[type]}" style="color: ${colors[type]};"></i>
+            <span>${message}</span>
+            <button onclick="this.parentElement.remove()" style="
+                background: none;
+                border: none;
+                color: #ccc;
+                cursor: pointer;
+                margin-left: 10px;
+                font-size: 18px;
+            ">×</button>
+        `;
+        
+        toastContainer.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.style.transform = 'translateX(0)';
+        }, 100);
+        
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.style.transform = 'translateX(100%)';
+                setTimeout(() => toast.remove(), 300);
+            }
+        }, 5000);
+    }
+    
+    // Initialize slider interactions
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add custom slider behavior
+        const sliders = document.querySelectorAll('.progress-slider');
+        sliders.forEach(slider => {
+            slider.addEventListener('input', function() {
+                const percent = (this.value - this.min) / (this.max - this.min) * 100;
+                const fill = this.parentNode.querySelector('.slider-fill');
+                const thumb = this.parentNode.querySelector('.slider-thumb');
+                
+                if (fill) fill.style.width = percent + '%';
+                if (thumb) thumb.style.left = `calc(${percent}% - 9px)`;
+            });
+            
+            slider.addEventListener('mousedown', function() {
+                const thumb = this.parentNode.querySelector('.slider-thumb');
+                if (thumb) thumb.style.transform = 'translateY(-50%) scale(1.2)';
+            });
+            
+            slider.addEventListener('mouseup', function() {
+                const thumb = this.parentNode.querySelector('.slider-thumb');
+                if (thumb) thumb.style.transform = 'translateY(-50%) scale(1)';
+            });
+        });
+        
+        // Initialize progress displays
+        if (mediaData.media_type === 'movie') {
+            updateMovieProgress();
+        } else {
+            updateTVProgress();
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,474 @@
+<!-- templates/result.html -->
+{% extends "base.html" %}
+
+{% block title %}🔍 Search Results - Ultimate Entertainment Hub{% endblock %}
+
+{% block content %}
+<div class="search-container text-white mb-4">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h1 class="display-5 fw-bold">🔍 Search Results</h1>
+            {% if query %}
+                <p class="lead mb-0">Results for "{{ query }}"</p>
+            {% endif %}
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{{ url_for('search') }}" class="btn btn-outline-light">
+                <i class="fas fa-search"></i> New Search
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Search Summary -->
+{% if results %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card card-custom">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h5 class="mb-2">📊 Search Summary</h5>
+                        <p class="mb-0">
+                            Found <strong>{{ results|length }}</strong> results
+                            {% if search_type and search_type != 'all' %}
+                                in <strong>{{ search_type.title() }}</strong>
+                            {% endif %}
+                            {% if page and page > 1 %}
+                                (Page {{ page }} of {{ total_pages or 1 }})
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="btn-group" role="group">
+                            <button class="btn btn-primary btn-sm" onclick="toggleView('grid')">
+                                <i class="fas fa-th"></i> Grid
+                            </button>
+                            <button class="btn btn-outline-primary btn-sm" onclick="toggleView('list')">
+                                <i class="fas fa-list"></i> List
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Search Results Grid -->
+<div id="results-container">
+    <div class="row" id="results-grid">
+        {% for item in results %}
+        <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-4 result-item" 
+             data-type="{{ item.media_type or 'unknown' }}" 
+             data-rating="{{ item.vote_average or 0 }}"
+             data-year="{{ (item.release_date or item.first_air_date or '')[:4] or 'unknown' }}"
+             data-popularity="{{ item.popularity or 0 }}">
+            <div class="card card-custom h-100">
+                <div class="poster-container">
+                    {% if item.media_type == 'person' %}
+                        {% if item.profile_path %}
+                            <img src="https://image.tmdb.org/t/p/w342{{ item.profile_path }}" 
+                                 alt="{{ item.name or 'Unknown' }}" class="card-img-top">
+                        {% else %}
+                            <div class="d-flex align-items-center justify-content-center h-100 bg-secondary text-white">
+                                <i class="fas fa-user fa-3x"></i>
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        {% if item.poster_path %}
+                            <img src="https://image.tmdb.org/t/p/w342{{ item.poster_path }}" 
+                                 alt="{{ item.title or item.name or 'Unknown' }}" class="card-img-top">
+                        {% else %}
+                            <div class="d-flex align-items-center justify-content-center h-100 bg-secondary text-white">
+                                <i class="fas fa-film fa-3x"></i>
+                            </div>
+                        {% endif %}
+                    {% endif %}
+                    
+                    <!-- Media Type Badge -->
+                    <div class="position-absolute top-0 end-0 m-2">
+                        {% if item.media_type == 'movie' %}
+                            <span class="badge bg-primary">🎬</span>
+                        {% elif item.media_type == 'tv' %}
+                            <span class="badge bg-info">📺</span>
+                        {% elif item.media_type == 'person' %}
+                            <span class="badge bg-success">👤</span>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="action-buttons">
+                        {% if item.media_type == 'person' %}
+                            <a href="/person/{{ item.id }}" class="btn btn-sm btn-primary w-100">
+                                <i class="fas fa-user"></i> View Profile
+                            </a>
+                        {% else %}
+                            <div class="btn-group w-100" role="group">
+                                <a href="/details/{{ item.media_type }}/{{ item.id }}" 
+                                   class="btn btn-sm btn-primary">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <button class="btn btn-sm btn-success" 
+                                        onclick="showAddToWatchlistModal({{ item|tojson }})">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="card-body p-2">
+                    <h6 class="card-title mb-1">{{ (item.title or item.name or 'Unknown')[:18] }}{% if (item.title or item.name or '')|length > 18 %}...{% endif %}</h6>
+                    
+                    {% if item.media_type == 'person' %}
+                        {% if item.known_for_department %}
+                            <small class="text-muted">{{ item.known_for_department }}</small>
+                        {% endif %}
+                    {% else %}
+                        {% if item.release_date or item.first_air_date %}
+                            <small class="text-muted">📅 {{ (item.release_date or item.first_air_date)[:4] }}</small>
+                        {% endif %}
+                        {% if item.vote_average and item.vote_average > 0 %}
+                            <br><small class="rating-badge">⭐ {{ "%.1f"|format(item.vote_average) }}</small>
+                        {% endif %}
+                        {% if item.popularity %}
+                            <br><small class="text-success">🔥 {{ "%.0f"|format(item.popularity) }}</small>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- List View (Hidden by default) -->
+    <div id="results-list" style="display: none;">
+        {% for item in results %}
+        <div class="card card-custom mb-3 result-item" 
+             data-type="{{ item.media_type or 'unknown' }}" 
+             data-rating="{{ item.vote_average or 0 }}"
+             data-year="{{ (item.release_date or item.first_air_date or '')[:4] or 'unknown' }}"
+             data-popularity="{{ item.popularity or 0 }}">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-2">
+                        {% if item.media_type == 'person' %}
+                            {% if item.profile_path %}
+                                <img src="https://image.tmdb.org/t/p/w185{{ item.profile_path }}" 
+                                     alt="{{ item.name or 'Unknown' }}" class="img-fluid rounded">
+                            {% else %}
+                                <div class="d-flex align-items-center justify-content-center bg-secondary text-white rounded" 
+                                     style="height: 120px;">
+                                    <i class="fas fa-user fa-2x"></i>
+                                </div>
+                            {% endif %}
+                        {% else %}
+                            {% if item.poster_path %}
+                                <img src="https://image.tmdb.org/t/p/w185{{ item.poster_path }}" 
+                                     alt="{{ item.title or item.name or 'Unknown' }}" class="img-fluid rounded">
+                            {% else %}
+                                <div class="d-flex align-items-center justify-content-center bg-secondary text-white rounded" 
+                                     style="height: 120px;">
+                                    <i class="fas fa-film fa-2x"></i>
+                                </div>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                    
+                    <div class="col-md-7">
+                        <h5 class="mb-2">
+                            {% if item.media_type == 'movie' %}🎬{% elif item.media_type == 'tv' %}📺{% elif item.media_type == 'person' %}👤{% endif %}
+                            {{ item.title or item.name or 'Unknown' }}
+                            {% if item.release_date or item.first_air_date %}
+                                <small class="text-muted">({{ (item.release_date or item.first_air_date)[:4] }})</small>
+                            {% endif %}
+                        </h5>
+                        
+                        {% if item.overview %}
+                            <p class="text-muted mb-2">{{ item.overview[:150] }}{% if item.overview|length > 150 %}...{% endif %}</p>
+                        {% elif item.media_type == 'person' and item.known_for_department %}
+                            <p class="text-muted mb-2">{{ item.known_for_department }}</p>
+                        {% endif %}
+                        
+                        <div class="row">
+                            {% if item.vote_average and item.vote_average > 0 %}
+                            <div class="col-md-4">
+                                <small><strong>⭐ Rating:</strong> {{ "%.1f"|format(item.vote_average) }}/10</small>
+                            </div>
+                            {% endif %}
+                            
+                            {% if item.popularity %}
+                            <div class="col-md-4">
+                                <small><strong>🔥 Popularity:</strong> {{ "%.0f"|format(item.popularity) }}</small>
+                            </div>
+                            {% endif %}
+                            
+                            {% if item.media_type != 'person' %}
+                            <div class="col-md-4">
+                                <small><strong>🎭 Type:</strong> {{ (item.media_type or 'unknown').title() }}</small>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <div class="d-grid gap-2">
+                            {% if item.media_type == 'person' %}
+                                <a href="/person/{{ item.id }}" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-user"></i> View Profile
+                                </a>
+                            {% else %}
+                                <a href="/details/{{ item.media_type }}/{{ item.id }}" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-eye"></i> View Details
+                                </a>
+                                <button class="btn btn-success btn-sm" onclick="showAddToWatchlistModal({{ item|tojson }})">
+                                    <i class="fas fa-plus"></i> Add to Watchlist
+                                </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Pagination -->
+{% if total_pages and total_pages > 1 %}
+<div class="row mt-4">
+    <div class="col-12">
+        <nav aria-label="Search results pagination">
+            <ul class="pagination justify-content-center">
+                {% if page and page > 1 %}
+                    <li class="page-item">
+                        <a class="page-link" href="?q={{ query or '' }}&type={{ search_type or 'all' }}&page={{ page - 1 }}">
+                            <i class="fas fa-chevron-left"></i> Previous
+                        </a>
+                    </li>
+                {% endif %}
+                
+                {% set start_page = (page - 2) if page > 2 else 1 %}
+                {% set end_page = (page + 2) if page + 2 <= total_pages else total_pages %}
+                
+                {% for page_num in range(start_page, end_page + 1) %}
+                    <li class="page-item {% if page_num == page %}active{% endif %}">
+                        <a class="page-link" href="?q={{ query or '' }}&type={{ search_type or 'all' }}&page={{ page_num }}">
+                            {{ page_num }}
+                        </a>
+                    </li>
+                {% endfor %}
+                
+                {% if page and page < total_pages %}
+                    <li class="page-item">
+                        <a class="page-link" href="?q={{ query or '' }}&type={{ search_type or 'all' }}&page={{ page + 1 }}">
+                            Next <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+</div>
+{% endif %}
+
+{% else %}
+<!-- No Results Found -->
+<div class="text-center py-5">
+    <i class="fas fa-search fa-5x text-muted mb-4"></i>
+    <h3 class="text-muted">No Results Found</h3>
+    {% if query %}
+        <p class="text-muted mb-4">Sorry, we couldn't find anything matching "{{ query }}"</p>
+    {% else %}
+        <p class="text-muted mb-4">Please enter a search term to find movies, TV shows, or people</p>
+    {% endif %}
+    
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card card-custom">
+                <div class="card-body">
+                    <h5>💡 Search Tips</h5>
+                    <ul class="list-unstyled text-start">
+                        <li class="mb-2">🔤 <strong>Check spelling:</strong> Make sure all words are spelled correctly</li>
+                        <li class="mb-2">🎯 <strong>Try different keywords:</strong> Use alternative terms or phrases</li>
+                        <li class="mb-2">📝 <strong>Be more general:</strong> Try broader search terms</li>
+                        <li class="mb-2">🎬 <strong>Use original titles:</strong> Search for the original movie/show name</li>
+                        <li class="mb-2">👤 <strong>Actor names:</strong> Try searching for cast members</li>
+                    </ul>
+                    
+                    <div class="mt-4">
+                        <a href="{{ url_for('search') }}" class="btn btn-primary-custom me-2">
+                            🔍 Try New Search
+                        </a>
+                        <a href="{{ url_for('trending') }}" class="btn btn-outline-primary">
+                            🔥 Browse Trending
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Add to Watchlist Modal -->
+<div class="modal fade" id="addToWatchlistModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">➕ Add to Watchlist</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="modalContent"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let selectedMedia = null;
+    let currentView = 'grid';
+    
+    function toggleView(view) {
+        const gridView = document.getElementById('results-grid');
+        const listView = document.getElementById('results-list');
+        const buttons = document.querySelectorAll('.btn-group .btn');
+        
+        // Update button states
+        buttons.forEach(btn => {
+            btn.classList.remove('btn-primary');
+            btn.classList.add('btn-outline-primary');
+        });
+        
+        if (view === 'grid') {
+            gridView.style.display = 'flex';
+            listView.style.display = 'none';
+            buttons[0].classList.remove('btn-outline-primary');
+            buttons[0].classList.add('btn-primary');
+            currentView = 'grid';
+        } else {
+            gridView.style.display = 'none';
+            listView.style.display = 'block';
+            buttons[1].classList.remove('btn-outline-primary');
+            buttons[1].classList.add('btn-primary');
+            currentView = 'list';
+        }
+    }
+    
+    function showAddToWatchlistModal(mediaData) {
+        selectedMedia = mediaData;
+        selectedMedia.media_type = mediaData.title ? 'movie' : 'tv';
+        
+        const modalContent = document.getElementById('modalContent');
+        const title = mediaData.title || mediaData.name || 'Unknown';
+        const year = (mediaData.release_date || mediaData.first_air_date || '').substring(0, 4);
+        
+        modalContent.innerHTML = `
+            <div class="row">
+                <div class="col-4">
+                    ${mediaData.poster_path ? 
+                        `<img src="https://image.tmdb.org/t/p/w342${mediaData.poster_path}" class="img-fluid rounded">` :
+                        `<div class="bg-secondary text-white d-flex align-items-center justify-content-center rounded" style="height: 200px;">
+                            <i class="fas fa-film fa-3x"></i>
+                        </div>`
+                    }
+                </div>
+                <div class="col-8">
+                    <h5>${title} ${year ? `(${year})` : ''}</h5>
+                    <p class="text-muted">🔍 From search results</p>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Add to:</label>
+                        <select class="form-control" id="listType">
+                            <option value="want_to_watch">⭐ Want to Watch</option>
+                            <option value="watching">📺 Currently Watching</option>
+                            <option value="completed">✅ Completed</option>
+                            <option value="favorites">💖 Favorites</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3" id="ratingSection" style="display: none;">
+                        <label class="form-label">Your Rating (0-10):</label>
+                        <input type="range" class="form-range" id="userRating" min="0" max="10" step="0.5" value="0">
+                        <div class="text-center">
+                            <span id="ratingValue">0</span>/10
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Notes (optional):</label>
+                        <textarea class="form-control" id="userNotes" rows="2" placeholder="Why did this catch your interest?"></textarea>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary-custom" onclick="confirmAddToWatchlist()">
+                            ✅ Add to Watchlist
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Setup event listeners
+        setupWatchlistModal();
+        
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('addToWatchlistModal'));
+        modal.show();
+    }
+    
+    function setupWatchlistModal() {
+        const listType = document.getElementById('listType');
+        const ratingSection = document.getElementById('ratingSection');
+        const userRating = document.getElementById('userRating');
+        const ratingValue = document.getElementById('ratingValue');
+        
+        if (listType) {
+            listType.addEventListener('change', function() {
+                if (this.value === 'completed' || this.value === 'favorites') {
+                    ratingSection.style.display = 'block';
+                } else {
+                    ratingSection.style.display = 'none';
+                }
+            });
+        }
+        
+        if (userRating && ratingValue) {
+            userRating.addEventListener('input', function() {
+                ratingValue.textContent = this.value;
+            });
+        }
+    }
+    
+    async function confirmAddToWatchlist() {
+        const listType = document.getElementById('listType').value;
+        const userRating = parseFloat(document.getElementById('userRating').value || 0);
+        const notes = document.getElementById('userNotes').value;
+        
+        await addToWatchlist(selectedMedia, listType, userRating, notes);
+        
+        // Hide modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('addToWatchlistModal'));
+        modal.hide();
+    }
+    
+    // Add smooth animations
+    document.addEventListener('DOMContentLoaded', function() {
+        const cards = document.querySelectorAll('.result-item');
+        cards.forEach((card, index) => {
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(20px)';
+            
+            setTimeout(() => {
+                card.style.transition = 'all 0.5s ease';
+                card.style.opacity = '1';
+                card.style.transform = 'translateY(0)';
+            }, index * 50);
+        });
+    });
+</script>
+{% endblock %}

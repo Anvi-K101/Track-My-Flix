@@ -1,0 +1,112 @@
+<!-- templates/watchlist_section.html -->
+{% set items = items or categories.get(list_type or 'watching', []) %}
+{% set list_type = list_type or 'watching' %}
+{% set show_ratings = show_ratings or false %}
+
+{% if items %}
+    <div class="watchlist-items">
+        {% for item in items %}
+        <div class="card card-custom mb-3">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-2">
+                        {% if item.poster_path %}
+                            <img src="https://image.tmdb.org/t/p/w185{{ item.poster_path }}" 
+                                 alt="{{ item.title }}" class="img-fluid rounded" style="max-height: 150px;">
+                        {% else %}
+                            <div class="d-flex align-items-center justify-content-center bg-secondary text-white rounded" 
+                                 style="height: 150px;">
+                                {% if item.media_type == 'movie' %}
+                                    <i class="fas fa-film fa-3x"></i>
+                                {% else %}
+                                    <i class="fas fa-tv fa-3x"></i>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="col-md-7">
+                        <h5 class="card-title mb-2">
+                            {% if item.media_type == 'movie' %}🎬{% else %}📺{% endif %}
+                            {{ item.title }}
+                            {% if item.year %}({{ item.year }}){% endif %}
+                            {% if item.language and item.language not in ['EN', 'CUSTOM'] %}
+                                <small class="text-muted">🌐{{ item.language }}</small>
+                            {% endif %}
+                        </h5>
+                        
+                        {% if item.genres %}
+                        <div class="mb-2">
+                            <strong>🎭 Genres:</strong>
+                            {% for genre in item.genres[:5] %}
+                                <span class="genre-badge">{{ genre }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        
+                        <div class="row">
+                            <div class="col-md-4">
+                                {% if item.user_rating and item.user_rating > 0 %}
+                                    <strong>⭐ Your Rating:</strong> {{ item.user_rating }}/10
+                                {% else %}
+                                    <strong>⭐ Your Rating:</strong> Not rated
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4">
+                                {% if item.tmdb_rating and item.tmdb_rating > 0 %}
+                                    <strong>🎭 TMDb:</strong> {{ "%.1f"|format(item.tmdb_rating) }}/10
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4">
+                                {% if item.runtime and item.runtime > 0 %}
+                                    <strong>⏰ Runtime:</strong> {{ format_time(item.runtime) }}
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        {% if item.notes %}
+                        <div class="mt-2">
+                            <strong>📝 Notes:</strong> {{ item.notes }}
+                        </div>
+                        {% endif %}
+                        
+                        <small class="text-muted">Added: {{ item.added_date }}</small>
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <div class="d-grid gap-2">
+                            <a href="/details/{{ item.media_type }}/{{ item.id }}" class="btn btn-primary btn-sm">
+                                <i class="fas fa-eye"></i> View Details
+                            </a>
+                            
+                            <button class="btn btn-info btn-sm" onclick="editItem({{ item|tojson }}, '{{ list_type }}')">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                            
+                            {% if item.media_type == 'tv' or (item.media_type == 'movie' and item.runtime) %}
+                            <a href="/scheduler/{{ item.media_type }}/{{ item.id }}" class="btn btn-success btn-sm">
+                                <i class="fas fa-calendar"></i> Schedule
+                            </a>
+                            {% endif %}
+                            
+                            <button class="btn btn-danger btn-sm" 
+                                    onclick="removeFromWatchlist('{{ item.id }}', '{{ list_type }}')">
+                                <i class="fas fa-trash"></i> Remove
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="text-center py-5">
+        <i class="fas fa-list fa-4x text-muted mb-3"></i>
+        <h4 class="text-muted">No items in this list</h4>
+        <p class="text-muted">Start adding content to see it here!</p>
+        <a href="{{ url_for('search') }}" class="btn btn-primary-custom">
+            <i class="fas fa-search"></i> Search for Content
+        </a>
+    </div>
+{% endif %}

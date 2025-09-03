@@ -1,0 +1,573 @@
+{% extends "base.html" %}
+
+{% block title %}📊 Analytics - Your Entertainment Hub{% endblock %}
+
+{% block content %}
+<div class="search-container text-white text-center mb-4">
+    <h1 class="display-4 fw-bold glow-text" style="font-family: 'Orbitron', monospace;">📊 YOUR ENTERTAINMENT ANALYTICS</h1>
+    <p class="lead" style="color: var(--text-secondary);">Deep insights into your viewing habits and preferences</p>
+</div>
+
+{% if stats.total_items == 0 %}
+<div class="text-center py-5">
+    <i class="fas fa-chart-bar fa-5x mb-4" style="color: var(--text-muted);"></i>
+    <h3 style="color: var(--text-primary); font-weight: 600;">No Analytics Available</h3>
+    <p style="color: var(--text-muted); font-size: 1.1rem;">Add movies and TV shows to your watchlist to see detailed analytics and insights!</p>
+    <div class="mt-4">
+        <a href="{{ url_for('search') }}" class="btn btn-primary-custom btn-lg me-3">
+            <i class="fas fa-search me-2"></i>START ADDING CONTENT
+        </a>
+        <a href="{{ url_for('trending') }}" class="btn btn-outline-primary btn-lg">
+            <i class="fas fa-fire me-2"></i>BROWSE TRENDING
+        </a>
+    </div>
+</div>
+{% else %}
+
+<!-- ENHANCED: Main Metrics Dashboard -->
+<div class="row mb-5">
+    <div class="col-md-3">
+        <div class="stats-card pulse-on-hover">
+            <h2 style="color: var(--primary-color); font-family: 'Orbitron', monospace;">{{ stats.total_items }}</h2>
+            <p style="color: var(--text-primary);">📚 TOTAL ITEMS</p>
+            <small style="color: var(--text-muted);">In your library</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card pulse-on-hover">
+            <h2 style="color: var(--secondary-color); font-family: 'Orbitron', monospace;">{{ stats.by_status.get('completed', 0) }}</h2>
+            <p style="color: var(--text-primary);">✅ COMPLETED</p>
+            <small style="color: var(--text-muted);">Finished watching</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card pulse-on-hover">
+            <h2 style="color: var(--accent-color); font-family: 'Orbitron', monospace;">{{ stats.by_status.get('watching', 0) }}</h2>
+            <p style="color: var(--text-primary);">📺 WATCHING</p>
+            <small style="color: var(--text-muted);">Currently active</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card pulse-on-hover">
+            <h2 style="color: var(--warning-color); font-family: 'Orbitron', monospace;">{{ "%.1f"|format(stats.completion_rate) if stats.completion_rate else "0" }}%</h2>
+            <p style="color: var(--text-primary);">🎯 COMPLETION</p>
+            <small style="color: var(--text-muted);">Success rate</small>
+        </div>
+    </div>
+</div>
+
+<!-- ENHANCED: Visual Analytics Charts -->
+<div class="row mb-5">
+    <div class="col-md-6 mb-4">
+        <div class="card card-custom">
+            <div class="card-header">
+                <h5 class="mb-0 glow-text" style="color: var(--text-primary); font-family: 'Orbitron', monospace;">📋 WATCHLIST DISTRIBUTION</h5>
+            </div>
+            <div class="card-body">
+                {% if charts.status %}
+                    <div id="statusChart" style="height: 400px;"></div>
+                {% else %}
+                    <!-- Manual chart fallback -->
+                    <div class="row text-center">
+                        {% for status, count in stats.by_status.items() %}
+                        {% if count > 0 %}
+                        <div class="col-6 mb-3">
+                            <div class="p-3 rounded" style="background: var(--glass-bg); border: 2px solid var(--border-color);">
+                                <h4 style="color: var(--primary-color); font-family: 'Orbitron', monospace;">{{ count }}</h4>
+                                <p style="color: var(--text-primary); font-size: 0.9rem; margin: 0;">
+                                    {% if status == 'want_to_watch' %}⭐ WANT TO WATCH
+                                    {% elif status == 'watching' %}📺 WATCHING
+                                    {% elif status == 'completed' %}✅ COMPLETED
+                                    {% elif status == 'dropped' %}❌ DROPPED
+                                    {% elif status == 'favorites' %}💖 FAVORITES
+                                    {% else %}{{ status.replace('_', ' ').title() }}
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                
+                <!-- Detailed breakdown -->
+                <div class="mt-4">
+                    <h6 style="color: var(--text-primary); font-family: 'Orbitron', monospace;">📊 DETAILED BREAKDOWN</h6>
+                    {% for status, count in stats.by_status.items() %}
+                    {% if count > 0 %}
+                    <div class="d-flex justify-content-between align-items-center mb-2 p-2 rounded" style="background: var(--glass-bg);">
+                        <span style="color: var(--text-primary); font-weight: 600;">
+                            {% if status == 'want_to_watch' %}⭐ Want to Watch
+                            {% elif status == 'watching' %}📺 Currently Watching
+                            {% elif status == 'completed' %}✅ Completed
+                            {% elif status == 'dropped' %}❌ Dropped
+                            {% elif status == 'favorites' %}💖 Favorites
+                            {% else %}{{ status.replace('_', ' ').title() }}
+                            {% endif %}
+                        </span>
+                        <div class="d-flex align-items-center">
+                            <div class="progress me-3" style="width: 100px; height: 8px;">
+                                <div class="progress-bar" style="width: {{ (count / stats.total_items * 100) if stats.total_items > 0 else 0 }}%; background: var(--primary-color);"></div>
+                            </div>
+                            <strong style="color: var(--accent-color); font-family: 'Orbitron', monospace;">{{ count }}</strong>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 mb-4">
+        <div class="card card-custom">
+            <div class="card-header">
+                <h5 class="mb-0 glow-text" style="color: var(--text-primary); font-family: 'Orbitron', monospace;">🎭 TOP GENRES</h5>
+            </div>
+            <div class="card-body">
+                {% if charts.genre %}
+                    <div id="genreChart" style="height: 400px;"></div>
+                {% else %}
+                    <!-- Manual genre chart fallback -->
+                    <div class="genre-breakdown">
+                        {% for genre, count in (stats.by_genre.items() | list)[:8] %}
+                        <div class="d-flex justify-content-between align-items-center mb-3 p-3 rounded" style="background: var(--glass-bg); border: 1px solid var(--border-color);">
+                            <div>
+                                <h6 style="color: var(--text-primary); margin: 0; font-weight: 600;">{{ genre }}</h6>
+                                <small style="color: var(--text-muted);">{{ "%.1f"|format((count / stats.total_items * 100) if stats.total_items > 0 else 0) }}% of library</small>
+                            </div>
+                            <div class="text-end">
+                                <h5 style="color: var(--secondary-color); margin: 0; font-family: 'Orbitron', monospace;">{{ count }}</h5>
+                                <div class="progress mt-1" style="width: 80px; height: 6px;">
+                                    <div class="progress-bar" style="width: {{ (count / (stats.by_genre.values() | list | max) * 100) if stats.by_genre else 0 }}%; background: linear-gradient(90deg, var(--secondary-color), var(--accent-color));"></div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                
+                <div class="mt-4 text-center">
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">
+                        <strong>{{ stats.by_genre|length }}</strong> different genres explored
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ENHANCED: Content Timeline and Insights -->
+{% if charts.year %}
+<div class="row mb-5">
+    <div class="col-12">
+        <div class="card card-custom">
+            <div class="card-header">
+                <h5 class="mb-0 glow-text" style="color: var(--text-primary); font-family: 'Orbitron', monospace;">📅 CONTENT BY RELEASE YEAR</h5>
+            </div>
+            <div class="card-body">
+                <div id="yearChart" style="height: 350px;"></div>
+                
+                <div class="row mt-4">
+                    <div class="col-md-4 text-center">
+                        <h5 style="color: var(--primary-color); font-family: 'Orbitron', monospace;">
+                            {{ stats.by_year.keys() | list | min if stats.by_year else 'N/A' }}
+                        </h5>
+                        <p style="color: var(--text-primary); font-size: 0.9rem;">OLDEST CONTENT</p>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <h5 style="color: var(--secondary-color); font-family: 'Orbitron', monospace;">
+                            {{ stats.by_year.keys() | list | max if stats.by_year else 'N/A' }}
+                        </h5>
+                        <p style="color: var(--text-primary); font-size: 0.9rem;">NEWEST CONTENT</p>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <h5 style="color: var(--accent-color); font-family: 'Orbitron', monospace;">
+                            {{ stats.by_year|length }}
+                        </h5>
+                        <p style="color: var(--text-primary); font-size: 0.9rem;">YEARS SPAN</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- ENHANCED: Advanced Analytics -->
+<div class="row">
+    <div class="col-md-4 mb-4">
+        <div class="card card-custom">
+            <div class="card-header">
+                <h5 class="mb-0 glow-text" style="color: var(--text-primary); font-family: 'Orbitron', monospace;">🏆 ACHIEVEMENTS</h5>
+            </div>
+            <div class="card-body">
+                <div class="achievements-grid">
+                    {% set achievement_count = 0 %}
+                    
+                    {% if stats.total_items >= 50 %}
+                        {% set achievement_count = achievement_count + 1 %}
+                        <div class="achievement-item mb-3 p-3 rounded" style="background: linear-gradient(135deg, var(--accent-color), var(--primary-color)); color: var(--bg-primary);">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-trophy fa-2x me-3"></i>
+                                <div>
+                                    <h6 class="mb-1" style="font-weight: 700;">Collection Master</h6>
+                                    <small>Built a library of 50+ titles</small>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                    
+                    {% if stats.by_status.get('completed', 0) >= 25 %}
+                        {% set achievement_count = achievement_count + 1 %}
+                        <div class="achievement-item mb-3 p-3 rounded" style="background: linear-gradient(135deg, var(--secondary-color), var(--accent-color)); color: var(--bg-primary);">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-medal fa-2x me-3"></i>
+                                <div>
+                                    <h6 class="mb-1" style="font-weight: 700;">Completionist</h6>
+                                    <small>Finished 25+ titles</small>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                    
+                    {% if stats.completion_rate >= 75 %}
+                        {% set achievement_count = achievement_count + 1 %}
+                        <div class="achievement-item mb-3 p-3 rounded" style="background: linear-gradient(135deg, var(--warning-color), var(--secondary-color)); color: var(--bg-primary);">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-star fa-2x me-3"></i>
+                                <div>
+                                    <h6 class="mb-1" style="font-weight: 700;">High Achiever</h6>
+                                    <small>75%+ completion rate</small>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                    
+                    {% if stats.by_genre|length >= 10 %}
+                        {% set achievement_count = achievement_count + 1 %}
+                        <div class="achievement-item mb-3 p-3 rounded" style="background: linear-gradient(135deg, var(--primary-color), var(--warning-color)); color: var(--bg-primary);">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-palette fa-2x me-3"></i>
+                                <div>
+                                    <h6 class="mb-1" style="font-weight: 700;">Genre Explorer</h6>
+                                    <small>Explored 10+ genres</small>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                    
+                    {% if achievement_count == 0 %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-trophy fa-3x mb-3" style="color: var(--text-muted);"></i>
+                            <h6 style="color: var(--text-primary);">No Achievements Yet</h6>
+                            <p style="color: var(--text-muted); font-size: 0.9rem;">Keep building your collection to unlock achievements!</p>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="mt-4 text-center">
+                    <small style="color: var(--text-muted);">
+                        <strong>{{ achievement_count }}</strong> of 4 achievements unlocked
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card card-custom">
+            <div class="card-header">
+                <h5 class="mb-0 glow-text" style="color: var(--text-primary); font-family: 'Orbitron', monospace;">📈 QUICK INSIGHTS</h5>
+            </div>
+            <div class="card-body">
+                <div class="insights-grid">
+                    <div class="insight-item mb-4 p-3 rounded" style="background: var(--glass-bg); border: 1px solid var(--border-color);">
+                        <div class="row">
+                            <div class="col-6 text-center">
+                                <h4 style="color: var(--primary-color); font-family: 'Orbitron', monospace;">{{ stats.by_type.get('movie', 0) }}</h4>
+                                <small style="color: var(--text-primary);">Movies</small>
+                            </div>
+                            <div class="col-6 text-center">
+                                <h4 style="color: var(--secondary-color); font-family: 'Orbitron', monospace;">{{ stats.by_type.get('tv', 0) }}</h4>
+                                <small style="color: var(--text-primary);">TV Shows</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="insight-item mb-4 p-3 rounded" style="background: var(--glass-bg); border: 1px solid var(--border-color);">
+                        <h6 style="color: var(--text-primary); margin-bottom: 8px;">📊 Library Diversity</h6>
+                        <div class="progress mb-2" style="height: 8px;">
+                            <div class="progress-bar" style="width: {{ (stats.by_genre|length / 20 * 100) if stats.by_genre else 0 }}%; background: linear-gradient(90deg, var(--accent-color), var(--secondary-color));"></div>
+                        </div>
+                        <small style="color: var(--text-muted);">{{ stats.by_genre|length }} of 20+ possible genres</small>
+                    </div>
+                    
+                    <div class="insight-item mb-4 p-3 rounded" style="background: var(--glass-bg); border: 1px solid var(--border-color);">
+                        <h6 style="color: var(--text-primary); margin-bottom: 8px;">🎯 Activity Level</h6>
+                        {% set activity_score = (stats.by_status.get('watching', 0) / stats.total_items * 100) if stats.total_items > 0 else 0 %}
+                        <div class="progress mb-2" style="height: 8px;">
+                            <div class="progress-bar" style="width: {{ activity_score }}%; background: linear-gradient(90deg, var(--warning-color), var(--primary-color));"></div>
+                        </div>
+                        <small style="color: var(--text-muted);">{{ "%.1f"|format(activity_score) }}% currently active</small>
+                    </div>
+                    
+                    {% if stats.by_genre %}
+                    {% set top_genre = stats.by_genre.items() | list | sort(attribute=1, reverse=true) | first %}
+                    <div class="insight-item p-3 rounded" style="background: var(--glass-bg); border: 1px solid var(--border-color);">
+                        <h6 style="color: var(--text-primary); margin-bottom: 8px;">🎭 Favorite Genre</h6>
+                        <h5 style="color: var(--accent-color); margin: 0; font-family: 'Orbitron', monospace;">{{ top_genre[0] }}</h5>
+                        <small style="color: var(--text-muted);">{{ top_genre[1] }} titles ({{ "%.1f"|format((top_genre[1] / stats.total_items * 100) if stats.total_items > 0 else 0) }}%)</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card card-custom">
+            <div class="card-header">
+                <h5 class="mb-0 glow-text" style="color: var(--text-primary); font-family: 'Orbitron', monospace;">💡 RECOMMENDATIONS</h5>
+            </div>
+            <div class="card-body">
+                <div class="recommendations-grid">
+                    {% if stats.completion_rate < 50 %}
+                        <div class="recommendation-item mb-3 p-3 rounded" style="background: rgba(255, 215, 0, 0.1); border: 1px solid var(--warning-color);">
+                            <div class="d-flex align-items-start">
+                                <i class="fas fa-lightbulb text-warning me-3 mt-1"></i>
+                                <div>
+                                    <h6 style="color: var(--text-primary); margin-bottom: 4px;">Improve Completion Rate</h6>
+                                    <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0;">Try finishing more shows to improve your {{ "%.1f"|format(stats.completion_rate) }}% completion rate!</p>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                    
+                    {% if stats.by_genre|length < 5 %}
+                        <div class="recommendation-item mb-3 p-3 rounded" style="background: rgba(0, 255, 136, 0.1); border: 1px solid var(--accent-color);">
+                            <div class="d-flex align-items-start">
+                                <i class="fas fa-compass text-success me-3 mt-1"></i>
+                                <div>
+                                    <h6 style="color: var(--text-primary); margin-bottom: 4px;">Explore New Genres</h6>
+                                    <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0;">Branch out! You've only explored {{ stats.by_genre|length }} genres so far.</p>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                    
+                    {% if stats.by_status.get('want_to_watch', 0) > stats.by_status.get('completed', 0) * 2 %}
+                        <div class="recommendation-item mb-3 p-3 rounded" style="background: rgba(0, 212, 255, 0.1); border: 1px solid var(--primary-color);">
+                            <div class="d-flex align-items-start">
+                                <i class="fas fa-play text-primary me-3 mt-1"></i>
+                                <div>
+                                    <h6 style="color: var(--text-primary); margin-bottom: 4px;">Start Watching</h6>
+                                    <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0;">You have {{ stats.by_status.get('want_to_watch', 0) }} items waiting. Time to start watching!</p>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                    
+                    <div class="recommendation-item p-3 rounded" style="background: rgba(255, 0, 128, 0.1); border: 1px solid var(--secondary-color);">
+                        <div class="d-flex align-items-start">
+                            <i class="fas fa-heart text-danger me-3 mt-1"></i>
+                            <div>
+                                <h6 style="color: var(--text-primary); margin-bottom: 4px;">Get Personalized Recommendations</h6>
+                                <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 8px;">Discover new content based on your viewing history.</p>
+                                <a href="{{ url_for('recommendations') }}" class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-magic me-1"></i> VIEW RECOMMENDATIONS
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endif %}
+
+<style>
+    /* ENHANCED: Achievement animations */
+    .achievement-item {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .achievement-item:hover {
+        transform: translateY(-2px) scale(1.02);
+        box-shadow: 0 8px 25px rgba(0, 212, 255, 0.2);
+    }
+    
+    /* ENHANCED: Insight item animations */
+    .insight-item {
+        transition: all 0.3s ease;
+    }
+    
+    .insight-item:hover {
+        transform: translateY(-2px);
+        border-color: var(--primary-color) !important;
+        box-shadow: 0 4px 15px rgba(0, 212, 255, 0.1);
+    }
+    
+    /* ENHANCED: Recommendation item animations */
+    .recommendation-item {
+        transition: all 0.3s ease;
+    }
+    
+    .recommendation-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+    
+    /* ENHANCED: Progress bar animations */
+    .progress-bar {
+        transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    /* ENHANCED: Chart container styling */
+    #statusChart, #genreChart, #yearChart {
+        border-radius: 12px;
+        background: var(--glass-bg);
+        padding: 20px;
+    }
+    
+    /* ENHANCED: Genre breakdown styling */
+    .genre-breakdown .progress {
+        background: var(--bg-secondary);
+        border-radius: 4px;
+        height: 6px;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // ENHANCED: Render Plotly charts with improved styling
+    document.addEventListener('DOMContentLoaded', function() {
+        // Configure chart layout for dark theme
+        const chartLayout = {
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            font: {
+                color: '#F8FAFC',
+                family: 'Orbitron, monospace',
+                size: 12
+            },
+            showlegend: true,
+            legend: {
+                font: { color: '#F8FAFC' }
+            }
+        };
+        
+        const chartConfig = {
+            displayModeBar: false,
+            responsive: true
+        };
+        
+        {% if charts.status %}
+        try {
+            const statusData = {{ charts.status|safe }};
+            statusData.layout = {...statusData.layout, ...chartLayout};
+            statusData.layout.title = {
+                text: "Watchlist Distribution",
+                font: { color: '#00D4FF', size: 16, family: 'Orbitron, monospace' }
+            };
+            Plotly.newPlot('statusChart', statusData.data, statusData.layout, chartConfig);
+        } catch (error) {
+            console.error('Error rendering status chart:', error);
+        }
+        {% endif %}
+        
+        {% if charts.genre %}
+        try {
+            const genreData = {{ charts.genre|safe }};
+            genreData.layout = {...genreData.layout, ...chartLayout};
+            genreData.layout.title = {
+                text: "Top Genres",
+                font: { color: '#00D4FF', size: 16, family: 'Orbitron, monospace' }
+            };
+            Plotly.newPlot('genreChart', genreData.data, genreData.layout, chartConfig);
+        } catch (error) {
+            console.error('Error rendering genre chart:', error);
+        }
+        {% endif %}
+        
+        {% if charts.year %}
+        try {
+            const yearData = {{ charts.year|safe }};
+            yearData.layout = {...yearData.layout, ...chartLayout};
+            yearData.layout.title = {
+                text: "Content by Release Year",
+                font: { color: '#00D4FF', size: 16, family: 'Orbitron, monospace' }
+            };
+            yearData.layout.xaxis = {
+                ...yearData.layout.xaxis,
+                gridcolor: 'rgba(0, 212, 255, 0.1)',
+                tickfont: { color: '#E0E6ED' }
+            };
+            yearData.layout.yaxis = {
+                ...yearData.layout.yaxis,
+                gridcolor: 'rgba(0, 212, 255, 0.1)',
+                tickfont: { color: '#E0E6ED' }
+            };
+            Plotly.newPlot('yearChart', yearData.data, yearData.layout, chartConfig);
+        } catch (error) {
+            console.error('Error rendering year chart:', error);
+        }
+        {% endif %}
+        
+        // ENHANCED: Animate stats cards on load
+        const statsCards = document.querySelectorAll('.stats-card');
+        statsCards.forEach((card, index) => {
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(30px) scale(0.9)';
+            
+            setTimeout(() => {
+                card.style.transition = 'all 0.8s cubic-bezier(0.4, 0, 0.2, 1)';
+                card.style.opacity = '1';
+                card.style.transform = 'translateY(0) scale(1)';
+            }, index * 150);
+        });
+        
+        // ENHANCED: Animate achievement items
+        const achievementItems = document.querySelectorAll('.achievement-item');
+        achievementItems.forEach((item, index) => {
+            item.style.opacity = '0';
+            item.style.transform = 'translateX(-20px)';
+            
+            setTimeout(() => {
+                item.style.transition = 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
+                item.style.opacity = '1';
+                item.style.transform = 'translateX(0)';
+            }, 1000 + (index * 200));
+        });
+        
+        // ENHANCED: Animate progress bars
+        const progressBars = document.querySelectorAll('.progress-bar');
+        setTimeout(() => {
+            progressBars.forEach(bar => {
+                const width = bar.style.width;
+                bar.style.width = '0%';
+                setTimeout(() => {
+                    bar.style.width = width;
+                }, 100);
+            });
+        }, 1500);
+        
+        // ENHANCED: Add hover effects to insight items
+        const insightItems = document.querySelectorAll('.insight-item');
+        insightItems.forEach(item => {
+            item.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-4px)';
+                this.style.borderColor = 'var(--primary-color)';
+            });
+            
+            item.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0)';
+                this.style.borderColor = 'var(--border-color)';
+            });
+        });
+    });
+</script>
+{% endblock %}

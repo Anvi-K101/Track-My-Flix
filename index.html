@@ -1,0 +1,443 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Hero Section with Enhanced Description -->
+<div class="search-container text-white text-center">
+    <h1 class="display-4 fw-bold mb-3">🎬 Welcome to FlixTracker</h1>
+    <p class="lead mb-4">Your Personal Entertainment Command Center</p>
+    
+    <!-- Search Form -->
+    <form action="{{ url_for('search') }}" method="GET" class="row g-3 justify-content-center">
+        <div class="col-md-6">
+            <input type="text" class="form-control form-control-lg" name="q" 
+                   placeholder="🔍 Search movies, TV shows..." required>
+        </div>
+        <div class="col-md-2">
+            <select class="form-control form-control-lg" name="type">
+                <option value="all">All Content</option>
+                <option value="movies">Movies Only</option>
+                <option value="tv">TV Shows Only</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-primary-custom btn-lg w-100">
+                <i class="fas fa-search"></i> Search
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Quick Stats -->
+{% if stats.total_items > 0 %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2 class="mb-3">📊 Your Library at a Glance</h2>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card">
+            <h4 style="font-size: 1.8rem;">{{ stats.total_items }}</h4>
+            <p style="font-size: 0.9rem;">📚 Total Items</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card">
+            <h4 style="font-size: 1.8rem;">{{ stats.by_status.get('completed', 0) }}</h4>
+            <p style="font-size: 0.9rem;">✅ Completed</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card">
+            <h4 style="font-size: 1.8rem;">{{ stats.by_status.get('watching', 0) }}</h4>
+            <p style="font-size: 0.9rem;">📺 Watching</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card">
+            <h4 style="font-size: 1.8rem;">{{ "%.1f"|format(stats.get('completion_rate', 0)) }}%</h4>
+            <p style="font-size: 0.9rem;">🎯 Completion Rate</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Featured Content -->
+<div class="row">
+    <div class="col-md-6">
+        <h2 class="mb-3">🔥 Trending Today</h2>
+        <div class="row">
+            {% for item in trending %}
+            <div class="col-6 mb-3">
+                <div class="card card-custom h-100">
+                    <div class="poster-container">
+                        {% if item.poster_path %}
+                            <img src="https://image.tmdb.org/t/p/w342{{ item.poster_path }}" 
+                                 alt="{{ item.title or item.name }}" class="card-img-top">
+                        {% else %}
+                            <div class="d-flex align-items-center justify-content-center h-100 bg-secondary text-white">
+                                <i class="fas fa-film fa-3x"></i>
+                            </div>
+                        {% endif %}
+                        
+                        <div class="action-buttons">
+                            <div class="btn-group w-100" role="group">
+                                <a href="/details/{{ 'movie' if item.title else 'tv' }}/{{ item.id }}" 
+                                   class="btn btn-sm btn-primary">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <button class="btn btn-sm btn-success" 
+                                        onclick="showAddToWatchlistModal({{ item|tojson }})">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card-body p-2">
+                        <h6 class="card-title mb-1" style="font-size: 0.9rem;">{{ (item.title or item.name)[:20] }}{% if (item.title or item.name)|length > 20 %}...{% endif %}</h6>
+                        {% if item.release_date or item.first_air_date %}
+                            <small class="text-muted" style="font-size: 0.8rem;">📅 {{ (item.release_date or item.first_air_date)[:4] }}</small>
+                        {% endif %}
+                        {% if item.vote_average > 0 %}
+                            <br><small class="rating-badge" style="font-size: 0.75rem;">⭐ {{ "%.1f"|format(item.vote_average) }}</small>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <h2 class="mb-3">⭐ Top Rated Movies</h2>
+        <div class="row">
+            {% for item in top_rated %}
+            <div class="col-6 mb-3">
+                <div class="card card-custom h-100">
+                    <div class="poster-container">
+                        {% if item.poster_path %}
+                            <img src="https://image.tmdb.org/t/p/w342{{ item.poster_path }}" 
+                                 alt="{{ item.title }}" class="card-img-top">
+                        {% else %}
+                            <div class="d-flex align-items-center justify-content-center h-100 bg-secondary text-white">
+                                <i class="fas fa-film fa-3x"></i>
+                            </div>
+                        {% endif %}
+                        
+                        <div class="action-buttons">
+                            <div class="btn-group w-100" role="group">
+                                <a href="/details/movie/{{ item.id }}" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <button class="btn btn-sm btn-success" 
+                                        onclick="showAddToWatchlistModal({{ item|tojson }})">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card-body p-2">
+                        <h6 class="card-title mb-1" style="font-size: 0.9rem;">{{ item.title[:20] }}{% if item.title|length > 20 %}...{% endif %}</h6>
+                        {% if item.release_date %}
+                            <small class="text-muted" style="font-size: 0.8rem;">📅 {{ item.release_date[:4] }}</small>
+                        {% endif %}
+                        {% if item.vote_average > 0 %}
+                            <br><small class="rating-badge" style="font-size: 0.75rem;">⭐ {{ "%.1f"|format(item.vote_average) }}</small>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Personalized Recommendations -->
+{% if recommendations %}
+<div class="row mt-4">
+    <div class="col-12">
+        <h2 class="mb-3">🎯 Personalized for You</h2>
+        <div class="row">
+            {% for item in recommendations %}
+            <div class="col-md-2 col-sm-4 col-6 mb-3">
+                <div class="card card-custom h-100">
+                    <div class="poster-container">
+                        {% if item.poster_path %}
+                            <img src="https://image.tmdb.org/t/p/w342{{ item.poster_path }}" 
+                                 alt="{{ item.title or item.name }}" class="card-img-top">
+                        {% else %}
+                            <div class="d-flex align-items-center justify-content-center h-100 bg-secondary text-white">
+                                <i class="fas fa-film fa-2x"></i>
+                            </div>
+                        {% endif %}
+                        
+                        <div class="action-buttons">
+                            <a href="/details/{{ 'movie' if item.title else 'tv' }}/{{ item.id }}" 
+                               class="btn btn-sm btn-primary w-100">
+                                <i class="fas fa-eye"></i> View
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <div class="card-body p-2">
+                        <h6 class="card-title mb-1 small" style="font-size: 0.85rem;">{{ (item.title or item.name)[:15] }}{% if (item.title or item.name)|length > 15 %}...{% endif %}</h6>
+                        {% if item.vote_average > 0 %}
+                            <small class="rating-badge" style="font-size: 0.75rem;">⭐ {{ "%.1f"|format(item.vote_average) }}</small>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Add to Watchlist Modal -->
+<div class="modal fade" id="addToWatchlistModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">➕ Add to Watchlist</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="modalContent">
+                    <!-- Content will be loaded dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .mini-stat {
+        padding: 10px;
+        text-align: center;
+        margin-bottom: 10px;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+    
+    .rating-badge {
+        background: linear-gradient(135deg, var(--warning-color), #ffa500);
+        color: var(--bg-primary);
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-weight: 700;
+    }
+    
+    .poster-container {
+        position: relative;
+        overflow: hidden;
+        border-radius: 12px;
+    }
+    
+    .poster-container img {
+        transition: transform 0.3s ease;
+    }
+    
+    .poster-container:hover img {
+        transform: scale(1.05);
+    }
+    
+    .action-buttons {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: linear-gradient(transparent, rgba(0,0,0,0.8));
+        padding: 20px 10px 10px;
+        transform: translateY(100%);
+        transition: transform 0.3s ease;
+    }
+    
+    .poster-container:hover .action-buttons {
+        transform: translateY(0);
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let selectedMedia = null;
+    
+    function showAddToWatchlistModal(mediaData) {
+        selectedMedia = mediaData;
+        selectedMedia.media_type = mediaData.title ? 'movie' : 'tv';
+        
+        const modalContent = document.getElementById('modalContent');
+        const title = mediaData.title || mediaData.name || 'Unknown';
+        const year = (mediaData.release_date || mediaData.first_air_date || '').substring(0, 4);
+        
+        modalContent.innerHTML = `
+            <div class="row">
+                <div class="col-4">
+                    ${mediaData.poster_path ? 
+                        `<img src="https://image.tmdb.org/t/p/w342${mediaData.poster_path}" class="img-fluid rounded">` :
+                        `<div class="bg-secondary text-white d-flex align-items-center justify-content-center rounded" style="height: 200px;">
+                            <i class="fas fa-film fa-3x"></i>
+                        </div>`
+                    }
+                </div>
+                <div class="col-8">
+                    <h5>${title} ${year ? `(${year})` : ''}</h5>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Add to:</label>
+                        <select class="form-control" id="listType">
+                            <option value="want_to_watch">⭐ Want to Watch</option>
+                            <option value="watching">📺 Currently Watching</option>
+                            <option value="completed">✅ Completed</option>
+                            <option value="favorites">💖 Favorites</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Notes (optional):</label>
+                        <textarea class="form-control" id="userNotes" rows="2"></textarea>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary-custom" onclick="confirmAddToWatchlist()">
+                            ✅ Add
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        const modal = new bootstrap.Modal(document.getElementById('addToWatchlistModal'));
+        modal.show();
+    }
+    
+    async function confirmAddToWatchlist() {
+        const listType = document.getElementById('listType').value;
+        const notes = document.getElementById('userNotes').value;
+        
+        try {
+            const response = await fetch('/api/add_to_watchlist', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    media_data: selectedMedia,
+                    list_type: listType,
+                    user_rating: 0,
+                    notes: notes
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showToast(result.message, 'success');
+            } else {
+                showToast(result.message, 'error');
+            }
+            
+        } catch (error) {
+            showToast('Error adding to watchlist', 'error');
+            console.error('Error:', error);
+        }
+        
+        // Hide modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('addToWatchlistModal'));
+        modal.hide();
+    }
+    
+    // Enhanced utility functions for toast notifications
+    function showToast(message, type = 'info') {
+        // Create toast if it doesn't exist
+        let toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'toast-container';
+            toastContainer.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                z-index: 9999;
+                max-width: 400px;
+                pointer-events: none;
+            `;
+            document.body.appendChild(toastContainer);
+        }
+        
+        const toast = document.createElement('div');
+        toast.className = `toast-notification toast-${type}`;
+        
+        const colors = {
+            success: '#28a745',
+            error: '#dc3545',
+            warning: '#ffc107',
+            info: '#17a2b8'
+        };
+        
+        const icons = {
+            success: 'fas fa-check-circle',
+            error: 'fas fa-exclamation-circle',
+            warning: 'fas fa-exclamation-triangle',
+            info: 'fas fa-info-circle'
+        };
+        
+        toast.style.cssText = `
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 16px 20px;
+            border-radius: 8px;
+            border-left: 4px solid ${colors[type]};
+            margin-bottom: 10px;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            pointer-events: auto;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            max-width: 100%;
+            word-wrap: break-word;
+        `;
+        
+        toast.innerHTML = `
+            <i class="${icons[type]}" style="color: ${colors[type]}; flex-shrink: 0;"></i>
+            <span style="flex: 1;">${message}</span>
+            <button onclick="this.parentElement.remove()" style="
+                background: none;
+                border: none;
+                color: #ccc;
+                cursor: pointer;
+                padding: 0;
+                margin-left: 10px;
+                font-size: 18px;
+                flex-shrink: 0;
+            ">×</button>
+        `;
+        
+        toastContainer.appendChild(toast);
+        
+        // Animate in
+        setTimeout(() => {
+            toast.style.transform = 'translateX(0)';
+        }, 100);
+        
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    if (toast.parentElement) {
+                        toast.remove();
+                    }
+                }, 300);
+            }
+        }, 5000);
+    }
+</script>
+{% endblock %}

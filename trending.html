@@ -1,0 +1,772 @@
+{% extends "base.html" %}
+
+{% block title %}🔥 Trending Content - FlixTracker{% endblock %}
+
+{% block content %}
+<div class="search-container text-white text-center mb-4">
+    <h1 class="display-4 fw-bold glow-text" style="font-family: 'Orbitron', monospace;">🔥 TRENDING CONTENT</h1>
+    <p class="lead" style="color: var(--text-secondary);">Discover what's popular right now across the globe</p>
+</div>
+
+<!-- WORKING Filter Controls -->
+<div class="card card-custom mb-4">
+    <div class="card-header">
+        <h5 class="mb-0 glow-text" style="color: var(--text-primary); font-family: 'Orbitron', monospace;">🎯 FILTER TRENDING CONTENT</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <label class="form-label" style="color: var(--text-primary);">Content Type:</label>
+                <div class="btn-group w-100" role="group">
+                    <a href="{{ url_for('trending') }}?filter=all&time={{ request.args.get('time', 'day') }}" 
+                       class="btn {{ 'btn-primary' if request.args.get('filter', 'all') == 'all' else 'btn-outline-primary' }} filter-btn">
+                        <i class="fas fa-film me-2"></i>ALL
+                    </a>
+                    <a href="{{ url_for('trending') }}?filter=movie&time={{ request.args.get('time', 'day') }}" 
+                       class="btn {{ 'btn-primary' if request.args.get('filter') == 'movie' else 'btn-outline-primary' }} filter-btn">
+                        <i class="fas fa-video me-2"></i>MOVIES
+                    </a>
+                    <a href="{{ url_for('trending') }}?filter=tv&time={{ request.args.get('time', 'day') }}" 
+                       class="btn {{ 'btn-primary' if request.args.get('filter') == 'tv' else 'btn-outline-primary' }} filter-btn">
+                        <i class="fas fa-tv me-2"></i>TV SHOWS
+                    </a>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" style="color: var(--text-primary);">Time Period:</label>
+                <div class="btn-group w-100" role="group">
+                    <a href="{{ url_for('trending') }}?filter={{ request.args.get('filter', 'all') }}&time=day" 
+                       class="btn {{ 'btn-success' if request.args.get('time', 'day') == 'day' else 'btn-outline-success' }} filter-btn">
+                        <i class="fas fa-calendar-day me-2"></i>TODAY
+                    </a>
+                    <a href="{{ url_for('trending') }}?filter={{ request.args.get('filter', 'all') }}&time=week" 
+                       class="btn {{ 'btn-success' if request.args.get('time') == 'week' else 'btn-outline-success' }} filter-btn">
+                        <i class="fas fa-calendar-week me-2"></i>THIS WEEK
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filtered Results Display -->
+{% if trending_data and (request.args.get('filter') or request.args.get('time')) %}
+<div class="card card-custom mb-4">
+    <div class="card-header">
+        <h5 class="mb-0 glow-text" style="color: var(--text-primary); font-family: 'Orbitron', monospace;">
+            🔥 TRENDING 
+            {% if request.args.get('filter') == 'movie' %}MOVIES{% elif request.args.get('filter') == 'tv' %}TV SHOWS{% else %}CONTENT{% endif %}
+            - {{ 'TODAY' if request.args.get('time', 'day') == 'day' else 'THIS WEEK' }}
+        </h5>
+    </div>
+    <div class="card-body">
+        {% if trending_data %}
+        <div class="row">
+            {% for item in trending_data %}
+            <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-4">
+                <div class="card card-custom h-100" style="animation-delay: {{ loop.index0 * 50 }}ms;">
+                    <div class="poster-container">
+                        {% if item.poster_path %}
+                            <img src="https://image.tmdb.org/t/p/w342{{ item.poster_path }}" 
+                                 alt="{{ item.title or item.name }}" class="card-img-top">
+                        {% else %}
+                            <div class="d-flex align-items-center justify-content-center h-100 bg-secondary text-white">
+                                <i class="fas fa-film fa-3x"></i>
+                            </div>
+                        {% endif %}
+                        
+                        <!-- Media type badge -->
+                        <div class="position-absolute top-0 end-0 m-2">
+                            {% if item.media_type == 'movie' or item.title %}
+                                <span class="badge trending-badge movie-badge">🎬</span>
+                            {% else %}
+                                <span class="badge trending-badge tv-badge">📺</span>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="action-buttons">
+                            <div class="btn-group w-100" role="group">
+                                <a href="/details/{{ item.media_type or ('movie' if item.title else 'tv') }}/{{ item.id }}" 
+                                   class="btn btn-sm btn-primary-custom">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <button class="btn btn-sm btn-outline-success" 
+                                        onclick="showAddToWatchlistModal({{ item|tojson }})">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card-body p-2">
+                        <h6 class="card-title mb-1" style="color: var(--text-primary); font-weight: 600; font-size: 0.9rem;">{{ (item.title or item.name)[:15] }}{% if (item.title or item.name)|length > 15 %}...{% endif %}</h6>
+                        
+                        {% if item.release_date or item.first_air_date %}
+                            <small style="color: var(--text-secondary); font-weight: 500;"><i class="fas fa-calendar-alt me-1"></i>{{ (item.release_date or item.first_air_date)[:4] }}</small>
+                        {% endif %}
+                        {% if item.vote_average > 0 %}
+                            <br><small class="rating-badge">⭐ {{ "%.1f"|format(item.vote_average) }}</small>
+                        {% endif %}
+                        {% if item.popularity %}
+                            <br><small style="color: var(--accent-color); font-weight: 600; font-size: 0.75rem;"><i class="fas fa-fire me-1"></i>{{ "%.0f"|format(item.popularity) }}</small>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-exclamation-triangle fa-4x mb-4" style="color: var(--text-muted);"></i>
+            <h5 style="color: var(--text-primary); font-weight: 600;">No Trending Content Found</h5>
+            <p style="color: var(--text-muted);">Try a different filter or check back later for updated trending content.</p>
+            <button class="btn btn-outline-primary" onclick="window.location.href='{{ url_for('trending') }}'">
+                <i class="fas fa-refresh me-2"></i>RESET FILTERS
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- General Trending Sections -->
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card card-custom">
+            <div class="card-header">
+                <h5 class="mb-0 glow-text" style="color: var(--text-primary); font-family: 'Orbitron', monospace;">🔥 TRENDING TODAY</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for item in trending_today %}
+                    <div class="col-6 mb-3">
+                        <div class="card card-custom h-100" style="animation-delay: {{ loop.index0 * 100 }}ms;">
+                            <div class="poster-container">
+                                {% if item.poster_path %}
+                                    <img src="https://image.tmdb.org/t/p/w342{{ item.poster_path }}" 
+                                         alt="{{ item.title or item.name }}" class="card-img-top">
+                                {% else %}
+                                    <div class="d-flex align-items-center justify-content-center h-100 bg-secondary text-white">
+                                        <i class="fas fa-film fa-2x"></i>
+                                    </div>
+                                {% endif %}
+                                
+                                <div class="action-buttons">
+                                    <a href="/details/{{ item.media_type or ('movie' if item.title else 'tv') }}/{{ item.id }}" 
+                                       class="btn btn-sm btn-primary-custom w-100">
+                                        <i class="fas fa-eye me-1"></i> VIEW
+                                    </a>
+                                </div>
+                            </div>
+                            
+                            <div class="card-body p-2">
+                                <h6 class="card-title mb-1" style="color: var(--text-primary); font-weight: 600;">{{ (item.title or item.name)[:12] }}{% if (item.title or item.name)|length > 12 %}...{% endif %}</h6>
+                                {% if item.vote_average > 0 %}
+                                    <small class="rating-badge">⭐ {{ "%.1f"|format(item.vote_average) }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 mb-4">
+        <div class="card card-custom">
+            <div class="card-header">
+                <h5 class="mb-0 glow-text" style="color: var(--text-primary); font-family: 'Orbitron', monospace;">📆 TRENDING THIS WEEK</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for item in trending_week %}
+                    <div class="col-6 mb-3">
+                        <div class="card card-custom h-100" style="animation-delay: {{ loop.index0 * 100 }}ms;">
+                            <div class="poster-container">
+                                {% if item.poster_path %}
+                                    <img src="https://image.tmdb.org/t/p/w342{{ item.poster_path }}" 
+                                         alt="{{ item.title or item.name }}" class="card-img-top">
+                                {% else %}
+                                    <div class="d-flex align-items-center justify-content-center h-100 bg-secondary text-white">
+                                        <i class="fas fa-film fa-2x"></i>
+                                    </div>
+                                {% endif %}
+                                
+                                <div class="action-buttons">
+                                    <a href="/details/{{ item.media_type or ('movie' if item.title else 'tv') }}/{{ item.id }}" 
+                                       class="btn btn-sm btn-primary-custom w-100">
+                                        <i class="fas fa-eye me-1"></i> VIEW
+                                    </a>
+                                </div>
+                            </div>
+                            
+                            <div class="card-body p-2">
+                                <h6 class="card-title mb-1" style="color: var(--text-primary); font-weight: 600;">{{ (item.title or item.name)[:12] }}{% if (item.title or item.name)|length > 12 %}...{% endif %}</h6>
+                                {% if item.vote_average > 0 %}
+                                    <small class="rating-badge">⭐ {{ "%.1f"|format(item.vote_average) }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card card-custom">
+            <div class="card-header">
+                <h5 class="mb-0 glow-text" style="color: var(--text-primary); font-family: 'Orbitron', monospace;">🎬 TRENDING MOVIES</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for item in trending_movies %}
+                    <div class="col-6 mb-3">
+                        <div class="card card-custom h-100" style="animation-delay: {{ loop.index0 * 100 }}ms;">
+                            <div class="poster-container">
+                                {% if item.poster_path %}
+                                    <img src="https://image.tmdb.org/t/p/w342{{ item.poster_path }}" 
+                                         alt="{{ item.title }}" class="card-img-top">
+                                {% else %}
+                                    <div class="d-flex align-items-center justify-content-center h-100 bg-secondary text-white">
+                                        <i class="fas fa-film fa-2x"></i>
+                                    </div>
+                                {% endif %}
+                                
+                                <div class="action-buttons">
+                                    <a href="/details/movie/{{ item.id }}" 
+                                       class="btn btn-sm btn-primary-custom w-100">
+                                        <i class="fas fa-eye me-1"></i> VIEW
+                                    </a>
+                                </div>
+                            </div>
+                            
+                            <div class="card-body p-2">
+                                <h6 class="card-title mb-1" style="color: var(--text-primary); font-weight: 600;">{{ item.title[:12] }}{% if item.title|length > 12 %}...{% endif %}</h6>
+                                {% if item.vote_average > 0 %}
+                                    <small class="rating-badge">⭐ {{ "%.1f"|format(item.vote_average) }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 mb-4">
+        <div class="card card-custom">
+            <div class="card-header">
+                <h5 class="mb-0 glow-text" style="color: var(--text-primary); font-family: 'Orbitron', monospace;">📺 TRENDING TV SHOWS</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for item in trending_tv %}
+                    <div class="col-6 mb-3">
+                        <div class="card card-custom h-100" style="animation-delay: {{ loop.index0 * 100 }}ms;">
+                            <div class="poster-container">
+                                {% if item.poster_path %}
+                                    <img src="https://image.tmdb.org/t/p/w342{{ item.poster_path }}" 
+                                         alt="{{ item.name }}" class="card-img-top">
+                                {% else %}
+                                    <div class="d-flex align-items-center justify-content-center h-100 bg-secondary text-white">
+                                        <i class="fas fa-tv fa-2x"></i>
+                                    </div>
+                                {% endif %}
+                                
+                                <div class="action-buttons">
+                                    <a href="/details/tv/{{ item.id }}" 
+                                       class="btn btn-sm btn-primary-custom w-100">
+                                        <i class="fas fa-eye me-1"></i> VIEW
+                                    </a>
+                                </div>
+                            </div>
+                            
+                            <div class="card-body p-2">
+                                <h6 class="card-title mb-1" style="color: var(--text-primary); font-weight: 600;">{{ item.name[:12] }}{% if item.name|length > 12 %}...{% endif %}</h6>
+                                {% if item.vote_average > 0 %}
+                                    <small class="rating-badge">⭐ {{ "%.1f"|format(item.vote_average) }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add to Watchlist Modal -->
+<div class="modal fade" id="addToWatchlistModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title glow-text" style="color: var(--text-primary); font-family: 'Orbitron', monospace;">➕ ADD TO WATCHLIST</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="modalContent"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Enhanced Filter Button Styling */
+    .filter-btn {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        font-weight: 600;
+    }
+    
+    .filter-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+    
+    .filter-btn.btn-primary {
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+        border-color: var(--primary-color);
+        box-shadow: 0 2px 10px rgba(79, 70, 229, 0.3);
+    }
+    
+    .filter-btn.btn-success {
+        background: linear-gradient(135deg, var(--success-color), var(--accent-color));
+        border-color: var(--success-color);
+        box-shadow: 0 2px 10px rgba(5, 150, 105, 0.3);
+    }
+    
+    /* Enhanced Trending Badges */
+    .trending-badge {
+        transition: all 0.3s ease;
+        font-weight: 700;
+        font-size: 11px;
+        padding: 4px 8px;
+        border-radius: 8px;
+    }
+    
+    .movie-badge {
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+        color: var(--bg-primary);
+    }
+    
+    .tv-badge {
+        background: linear-gradient(135deg, var(--secondary-color), var(--accent-color));
+        color: var(--bg-primary);
+    }
+    
+    .trending-badge:hover {
+        transform: scale(1.1);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+    
+    /* Enhanced Card Entrance Animations */
+    .card-custom {
+        animation: slideInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        opacity: 0;
+    }
+    
+    @keyframes slideInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* Enhanced Poster Container */
+    .poster-container {
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+        border-radius: 12px;
+    }
+    
+    .poster-container:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3), 0 0 20px rgba(79, 70, 229, 0.2);
+    }
+    
+    .poster-container img {
+        transition: transform 0.4s ease;
+    }
+    
+    .poster-container:hover img {
+        transform: scale(1.05);
+    }
+    
+    /* Action Buttons Overlay */
+    .action-buttons {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: linear-gradient(transparent, rgba(0,0,0,0.8));
+        padding: 20px 10px 10px;
+        transform: translateY(100%);
+        transition: transform 0.3s ease;
+    }
+    
+    .poster-container:hover .action-buttons {
+        transform: translateY(0);
+    }
+    
+    /* Rating Badge Styling */
+    .rating-badge {
+        background: linear-gradient(135deg, var(--warning-color), #ffa500);
+        color: var(--bg-primary);
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-weight: 700;
+        font-size: 0.8rem;
+    }
+    
+    /* Enhanced Button Group Styling */
+    .btn-group .btn {
+        transition: all 0.3s ease;
+    }
+    
+    .btn-group .btn:hover {
+        transform: translateY(-1px);
+        z-index: 1;
+    }
+    
+    /* Loading States */
+    .loading-pulse {
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.5;
+        }
+        100% {
+            opacity: 1;
+        }
+    }
+    
+    /* Responsive Adjustments */
+    @media (max-width: 768px) {
+        .filter-btn {
+            font-size: 0.875rem;
+            padding: 8px 12px;
+        }
+        
+        .poster-container:hover {
+            transform: translateY(-2px);
+        }
+        
+        .card-custom {
+            margin-bottom: 15px;
+        }
+        
+        .trending-badge {
+            font-size: 10px;
+            padding: 3px 6px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let selectedMedia = null;
+    
+    function showAddToWatchlistModal(mediaData) {
+        selectedMedia = mediaData;
+        selectedMedia.media_type = mediaData.title ? 'movie' : 'tv';
+        
+        const modalContent = document.getElementById('modalContent');
+        const title = mediaData.title || mediaData.name || 'Unknown';
+        const year = (mediaData.release_date || mediaData.first_air_date || '').substring(0, 4);
+        
+        modalContent.innerHTML = `
+            <div class="row">
+                <div class="col-4">
+                    ${mediaData.poster_path ? 
+                        `<img src="https://image.tmdb.org/t/p/w342${mediaData.poster_path}" class="img-fluid rounded" style="border: 2px solid var(--border-color);">` :
+                        `<div class="bg-secondary text-white d-flex align-items-center justify-content-center rounded" style="height: 200px; border: 2px solid var(--border-color);">
+                            <i class="fas fa-film fa-3x"></i>
+                        </div>`
+                    }
+                </div>
+                <div class="col-8">
+                    <h5 style="color: var(--text-primary); font-family: 'Orbitron', monospace;">${title} ${year ? `(${year})` : ''}</h5>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem;">📈 From trending content</p>
+                    
+                    <div class="mb-3">
+                        <label class="form-label" style="color: var(--text-primary);">Add to:</label>
+                        <select class="form-control" id="listType" style="background: var(--bg-secondary); border: 2px solid var(--border-color); color: var(--text-primary);">
+                            <option value="want_to_watch">⭐ Want to Watch</option>
+                            <option value="watching">📺 Currently Watching</option>
+                            <option value="completed">✅ Completed</option>
+                            <option value="favorites">💖 Favorites</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label" style="color: var(--text-primary);">Notes (optional):</label>
+                        <textarea class="form-control" id="userNotes" rows="2" placeholder="Why does this trending content interest you?" 
+                                  style="background: var(--bg-secondary); border: 2px solid var(--border-color); color: var(--text-primary);"></textarea>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times me-2"></i>CANCEL
+                        </button>
+                        <button type="button" class="btn btn-primary-custom" onclick="confirmAddToWatchlist()">
+                            <i class="fas fa-plus me-2"></i>ADD TO WATCHLIST
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        const modal = new bootstrap.Modal(document.getElementById('addToWatchlistModal'));
+        modal.show();
+    }
+    
+    async function confirmAddToWatchlist() {
+        const listType = document.getElementById('listType').value;
+        const notes = document.getElementById('userNotes').value;
+        
+        try {
+            const response = await fetch('/api/add_to_watchlist', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    media_data: selectedMedia,
+                    list_type: listType,
+                    user_rating: 0,
+                    notes: notes
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showToast(result.message, 'success');
+            } else {
+                showToast(result.message, 'error');
+            }
+            
+        } catch (error) {
+            showToast('Error adding to watchlist', 'error');
+            console.error('Error:', error);
+        }
+        
+        // Hide modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('addToWatchlistModal'));
+        modal.hide();
+    }
+    
+    // Enhanced utility functions for toast notifications
+    function showToast(message, type = 'info') {
+        // Create toast if it doesn't exist
+        let toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'toast-container';
+            toastContainer.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                z-index: 9999;
+                max-width: 400px;
+                pointer-events: none;
+            `;
+            document.body.appendChild(toastContainer);
+        }
+        
+        const toast = document.createElement('div');
+        toast.className = `toast-notification toast-${type}`;
+        
+        const colors = {
+            success: '#28a745',
+            error: '#dc3545',
+            warning: '#ffc107',
+            info: '#17a2b8'
+        };
+        
+        const icons = {
+            success: 'fas fa-check-circle',
+            error: 'fas fa-exclamation-circle',
+            warning: 'fas fa-exclamation-triangle',
+            info: 'fas fa-info-circle'
+        };
+        
+        toast.style.cssText = `
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 16px 20px;
+            border-radius: 8px;
+            border-left: 4px solid ${colors[type]};
+            margin-bottom: 10px;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            pointer-events: auto;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            max-width: 100%;
+            word-wrap: break-word;
+        `;
+        
+        toast.innerHTML = `
+            <i class="${icons[type]}" style="color: ${colors[type]}; flex-shrink: 0;"></i>
+            <span style="flex: 1;">${message}</span>
+            <button onclick="this.parentElement.remove()" style="
+                background: none;
+                border: none;
+                color: #ccc;
+                cursor: pointer;
+                padding: 0;
+                margin-left: 10px;
+                font-size: 18px;
+                flex-shrink: 0;
+            ">×</button>
+        `;
+        
+        toastContainer.appendChild(toast);
+        
+        // Animate in
+        setTimeout(() => {
+            toast.style.transform = 'translateX(0)';
+        }, 100);
+        
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    if (toast.parentElement) {
+                        toast.remove();
+                    }
+                }, 300);
+            }
+        }, 5000);
+    }
+    
+    // Enhanced animations and interactions
+    document.addEventListener('DOMContentLoaded', function() {
+        // Animate cards on load
+        const cards = document.querySelectorAll('.card-custom');
+        cards.forEach((card, index) => {
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(30px)';
+            
+            setTimeout(() => {
+                card.style.transition = 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
+                card.style.opacity = '1';
+                card.style.transform = 'translateY(0)';
+            }, index * 75);
+        });
+        
+        // Add hover effects to filter buttons
+        const filterButtons = document.querySelectorAll('.filter-btn');
+        filterButtons.forEach(button => {
+            button.addEventListener('mouseenter', function() {
+                if (!this.classList.contains('btn-primary') && !this.classList.contains('btn-success')) {
+                    this.style.transform = 'translateY(-2px)';
+                    this.style.boxShadow = '0 4px 15px rgba(0, 212, 255, 0.3)';
+                }
+            });
+            
+            button.addEventListener('mouseleave', function() {
+                if (!this.classList.contains('btn-primary') && !this.classList.contains('btn-success')) {
+                    this.style.transform = 'translateY(0)';
+                    this.style.boxShadow = '';
+                }
+            });
+        });
+        
+        // Add pulse effect to trending badges
+        const badges = document.querySelectorAll('.trending-badge');
+        badges.forEach(badge => {
+            badge.addEventListener('mouseenter', function() {
+                this.style.animation = 'pulse 1.5s infinite';
+            });
+            
+            badge.addEventListener('mouseleave', function() {
+                this.style.animation = '';
+            });
+        });
+        
+        // Add click effects to poster containers
+        const posterContainers = document.querySelectorAll('.poster-container');
+        posterContainers.forEach(container => {
+            container.addEventListener('click', function(e) {
+                // Add ripple effect
+                const ripple = document.createElement('div');
+                const rect = this.getBoundingClientRect();
+                const size = Math.max(rect.width, rect.height);
+                const x = e.clientX - rect.left - size / 2;
+                const y = e.clientY - rect.top - size / 2;
+                
+                ripple.style.cssText = `
+                    position: absolute;
+                    width: ${size}px;
+                    height: ${size}px;
+                    left: ${x}px;
+                    top: ${y}px;
+                    background: rgba(79, 70, 229, 0.3);
+                    border-radius: 50%;
+                    transform: scale(0);
+                    animation: ripple 0.6s linear;
+                    pointer-events: none;
+                    z-index: 10;
+                `;
+                
+                this.appendChild(ripple);
+                
+                setTimeout(() => {
+                    ripple.remove();
+                }, 600);
+            });
+        });
+    });
+    
+    // Add CSS for ripple animation
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes ripple {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+        
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(79, 70, 229, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(79, 70, 229, 0);
+            }
+        }
+        
+        .poster-container {
+            position: relative;
+            overflow: hidden;
+        }
+    `;
+    document.head.appendChild(style);
+</script>
+{% endblock %}

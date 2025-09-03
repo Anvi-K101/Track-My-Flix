@@ -1,0 +1,699 @@
+<!-- templates/watchlist.html -->
+{% extends "base.html" %}
+
+{% block title %}📋 My Watchlist - Your Entertainment Hub{% endblock %}
+
+{% block content %}
+<div class="search-container text-white text-center mb-4">
+    <h1 class="display-4 fw-bold glow-text">📋 MY ENTERTAINMENT LIBRARY</h1>
+    <p class="lead">Organize and track your viewing journey</p>
+</div>
+
+<!-- Quick Stats -->
+{% if stats.total_items > 0 %}
+<div class="row mb-4">
+    <div class="col-md-2">
+        <div class="stats-card pulse-on-hover">
+            <h3>{{ stats.total_items }}</h3>
+            <p>📚 TOTAL</p>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stats-card pulse-on-hover">
+            <h3>{{ format_time(stats.total_runtime_minutes) }}</h3>
+            <p>⏰ RUNTIME</p>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stats-card pulse-on-hover">
+            <h3>{{ stats.by_status.get('completed', 0) }}</h3>
+            <p>✅ COMPLETED</p>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stats-card pulse-on-hover">
+            <h3>{{ stats.by_status.get('watching', 0) }}</h3>
+            <p>📺 WATCHING</p>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stats-card pulse-on-hover">
+            <h3>{{ stats.by_status.get('want_to_watch', 0) }}</h3>
+            <p>⭐ WANT TO WATCH</p>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stats-card pulse-on-hover">
+            <h3>{{ stats.by_status.get('favorites', 0) }}</h3>
+            <p>💖 FAVORITES</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Export Section -->
+<div class="card card-custom mb-4">
+    <div class="card-header">
+        <h5 class="mb-0 glow-text">📤 EXPORT WATCHLIST</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-8">
+                <h6>📤 DOWNLOAD YOUR WATCHLIST</h6>
+                <p class="text-muted">Export your watchlist data for backup or sharing</p>
+            </div>
+            <div class="col-md-4 text-end">
+                <div class="btn-group" role="group">
+                    <a href="/api/export_watchlist/csv" class="btn btn-outline-primary">
+                        <i class="fas fa-file-csv"></i> CSV
+                    </a>
+                    <a href="/api/export_watchlist/json" class="btn btn-outline-info">
+                        <i class="fas fa-file-code"></i> JSON
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Watchlist Tabs -->
+<div class="card card-custom">
+    <div class="card-header">
+        <ul class="nav nav-tabs card-header-tabs" role="tablist">
+            <li class="nav-item">
+                <a class="nav-link active" data-bs-toggle="tab" href="#watching" role="tab">
+                    📺 CURRENTLY WATCHING ({{ categories.watching|length }})
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#want_to_watch" role="tab">
+                    ⭐ WANT TO WATCH ({{ categories.want_to_watch|length }})
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#completed" role="tab">
+                    ✅ COMPLETED ({{ categories.completed|length }})
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#dropped" role="tab">
+                    ❌ DROPPED ({{ categories.dropped|length }})
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#favorites" role="tab">
+                    💖 FAVORITES ({{ categories.favorites|length }})
+                </a>
+            </li>
+        </ul>
+    </div>
+    
+    <div class="card-body">
+        <div class="tab-content">
+            <!-- Currently Watching -->
+            <div class="tab-pane fade show active" id="watching" role="tabpanel">
+                {% if categories.watching %}
+                    <div class="watchlist-items">
+                        {% for item in categories.watching %}
+                        <div class="card card-custom mb-3">
+                            <div class="card-body">
+                                <div class="row align-items-center">
+                                    <div class="col-md-2">
+                                        {% if item.poster_path %}
+                                            <img src="https://image.tmdb.org/t/p/w185{{ item.poster_path }}" 
+                                                 alt="{{ item.title }}" class="img-fluid rounded" style="max-height: 150px;">
+                                        {% else %}
+                                            <div class="d-flex align-items-center justify-content-center bg-secondary text-white rounded" 
+                                                 style="height: 150px;">
+                                                {% if item.media_type == 'movie' %}
+                                                    <i class="fas fa-film fa-3x"></i>
+                                                {% else %}
+                                                    <i class="fas fa-tv fa-3x"></i>
+                                                {% endif %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-7">
+                                        <h5 class="card-title mb-2">
+                                            {% if item.media_type == 'movie' %}🎬{% else %}📺{% endif %}
+                                            {{ item.title }}
+                                            {% if item.year %}({{ item.year }}){% endif %}
+                                            {% if item.language and item.language not in ['EN', 'CUSTOM'] %}
+                                                <small class="text-muted">🌐{{ item.language }}</small>
+                                            {% endif %}
+                                        </h5>
+                                        
+                                        {% if item.genres %}
+                                        <div class="mb-2">
+                                            <strong>🎭 Genres:</strong>
+                                            {% for genre in item.genres[:5] %}
+                                                <span class="genre-badge">{{ genre }}</span>
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                        
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                {% if item.tmdb_rating and item.tmdb_rating > 0 %}
+                                                    <strong>🎭 TMDb:</strong> {{ "%.1f"|format(item.tmdb_rating) }}/10
+                                                {% endif %}
+                                            </div>
+                                            <div class="col-md-4">
+                                                {% if item.runtime and item.runtime > 0 %}
+                                                    <strong>⏰ Runtime:</strong> {{ format_time(item.runtime) }}
+                                                {% endif %}
+                                            </div>
+                                            <div class="col-md-4">
+                                                <strong>📅 Added:</strong> {{ item.added_date[:10] }}
+                                            </div>
+                                        </div>
+                                        
+                                        {% if item.notes %}
+                                        <div class="mt-2">
+                                            <strong>📝 Notes:</strong> {{ item.notes }}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-3">
+                                        <div class="d-grid gap-2">
+                                            <a href="/details/{{ item.media_type }}/{{ item.id }}" class="btn btn-primary-custom btn-sm">
+                                                <i class="fas fa-eye"></i> VIEW DETAILS
+                                            </a>
+                                            
+                                            <button class="btn btn-outline-info btn-sm" onclick="editItem({{ item|tojson }}, 'watching')">
+                                                <i class="fas fa-edit"></i> EDIT
+                                            </button>
+                                            
+                                            {% if item.media_type == 'tv' or (item.media_type == 'movie' and item.runtime) %}
+                                            <a href="/scheduler/{{ item.media_type }}/{{ item.id }}" class="btn btn-outline-success btn-sm">
+                                                <i class="fas fa-calendar"></i> SCHEDULE
+                                            </a>
+                                            {% endif %}
+                                            
+                                            <button class="btn btn-outline-danger btn-sm" 
+                                                    onclick="removeFromWatchlist('{{ item.id }}', 'watching')">
+                                                <i class="fas fa-trash"></i> REMOVE
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-tv fa-4x text-muted mb-3"></i>
+                        <h4 class="text-muted">NO ITEMS CURRENTLY WATCHING</h4>
+                        <p class="text-muted">Start adding content to see it here!</p>
+                        <a href="{{ url_for('search') }}" class="btn btn-primary-custom">
+                            <i class="fas fa-search"></i> SEARCH FOR CONTENT
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+            
+            <!-- Want to Watch -->
+            <div class="tab-pane fade" id="want_to_watch" role="tabpanel">
+                {% if categories.want_to_watch %}
+                    <div class="watchlist-items">
+                        {% for item in categories.want_to_watch %}
+                        <div class="card card-custom mb-3">
+                            <div class="card-body">
+                                <div class="row align-items-center">
+                                    <div class="col-md-2">
+                                        {% if item.poster_path %}
+                                            <img src="https://image.tmdb.org/t/p/w185{{ item.poster_path }}" 
+                                                 alt="{{ item.title }}" class="img-fluid rounded" style="max-height: 150px;">
+                                        {% else %}
+                                            <div class="d-flex align-items-center justify-content-center bg-secondary text-white rounded" 
+                                                 style="height: 150px;">
+                                                {% if item.media_type == 'movie' %}
+                                                    <i class="fas fa-film fa-3x"></i>
+                                                {% else %}
+                                                    <i class="fas fa-tv fa-3x"></i>
+                                                {% endif %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-7">
+                                        <h5 class="card-title mb-2">
+                                            {% if item.media_type == 'movie' %}🎬{% else %}📺{% endif %}
+                                            {{ item.title }}
+                                            {% if item.year %}({{ item.year }}){% endif %}
+                                        </h5>
+                                        
+                                        {% if item.genres %}
+                                        <div class="mb-2">
+                                            <strong>🎭 Genres:</strong>
+                                            {% for genre in item.genres[:5] %}
+                                                <span class="genre-badge">{{ genre }}</span>
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                        
+                                        {% if item.notes %}
+                                        <div class="mt-2">
+                                            <strong>📝 Notes:</strong> {{ item.notes }}
+                                        </div>
+                                        {% endif %}
+                                        
+                                        <small class="text-muted">Added: {{ item.added_date[:10] }}</small>
+                                    </div>
+                                    
+                                    <div class="col-md-3">
+                                        <div class="d-grid gap-2">
+                                            <a href="/details/{{ item.media_type }}/{{ item.id }}" class="btn btn-primary-custom btn-sm">
+                                                <i class="fas fa-eye"></i> VIEW DETAILS
+                                            </a>
+                                            
+                                            <button class="btn btn-outline-info btn-sm" onclick="editItem({{ item|tojson }}, 'want_to_watch')">
+                                                <i class="fas fa-edit"></i> EDIT
+                                            </button>
+                                            
+                                            <button class="btn btn-outline-danger btn-sm" 
+                                                    onclick="removeFromWatchlist('{{ item.id }}', 'want_to_watch')">
+                                                <i class="fas fa-trash"></i> REMOVE
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-star fa-4x text-muted mb-3"></i>
+                        <h4 class="text-muted">NO ITEMS IN WANT TO WATCH</h4>
+                        <p class="text-muted">Add movies and shows you want to watch later!</p>
+                        <a href="{{ url_for('search') }}" class="btn btn-primary-custom">
+                            <i class="fas fa-search"></i> SEARCH FOR CONTENT
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+            
+            <!-- Completed -->
+            <div class="tab-pane fade" id="completed" role="tabpanel">
+                {% if categories.completed %}
+                    <div class="watchlist-items">
+                        {% for item in categories.completed %}
+                        <div class="card card-custom mb-3">
+                            <div class="card-body">
+                                <div class="row align-items-center">
+                                    <div class="col-md-2">
+                                        {% if item.poster_path %}
+                                            <img src="https://image.tmdb.org/t/p/w185{{ item.poster_path }}" 
+                                                 alt="{{ item.title }}" class="img-fluid rounded" style="max-height: 150px;">
+                                        {% else %}
+                                            <div class="d-flex align-items-center justify-content-center bg-secondary text-white rounded" 
+                                                 style="height: 150px;">
+                                                {% if item.media_type == 'movie' %}
+                                                    <i class="fas fa-film fa-3x"></i>
+                                                {% else %}
+                                                    <i class="fas fa-tv fa-3x"></i>
+                                                {% endif %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-7">
+                                        <h5 class="card-title mb-2">
+                                            {% if item.media_type == 'movie' %}🎬{% else %}📺{% endif %}
+                                            {{ item.title }}
+                                            {% if item.year %}({{ item.year }}){% endif %}
+                                        </h5>
+                                        
+                                        {% if item.genres %}
+                                        <div class="mb-2">
+                                            <strong>🎭 Genres:</strong>
+                                            {% for genre in item.genres[:5] %}
+                                                <span class="genre-badge">{{ genre }}</span>
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                        
+                                        {% if item.notes %}
+                                        <div class="mt-2">
+                                            <strong>📝 Notes:</strong> {{ item.notes }}
+                                        </div>
+                                        {% endif %}
+                                        
+                                        <small class="text-muted">Completed: {{ item.added_date[:10] }}</small>
+                                    </div>
+                                    
+                                    <div class="col-md-3">
+                                        <div class="d-grid gap-2">
+                                            <a href="/details/{{ item.media_type }}/{{ item.id }}" class="btn btn-primary-custom btn-sm">
+                                                <i class="fas fa-eye"></i> VIEW DETAILS
+                                            </a>
+                                            
+                                            <button class="btn btn-outline-info btn-sm" onclick="editItem({{ item|tojson }}, 'completed')">
+                                                <i class="fas fa-edit"></i> EDIT
+                                            </button>
+                                            
+                                            <button class="btn btn-outline-danger btn-sm" 
+                                                    onclick="removeFromWatchlist('{{ item.id }}', 'completed')">
+                                                <i class="fas fa-trash"></i> REMOVE
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-check fa-4x text-muted mb-3"></i>
+                        <h4 class="text-muted">NO COMPLETED ITEMS</h4>
+                        <p class="text-muted">Mark movies and shows as completed when you finish them!</p>
+                        <a href="{{ url_for('search') }}" class="btn btn-primary-custom">
+                            <i class="fas fa-search"></i> SEARCH FOR CONTENT
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+            
+            <!-- Dropped -->
+            <div class="tab-pane fade" id="dropped" role="tabpanel">
+                {% if categories.dropped %}
+                    <div class="watchlist-items">
+                        {% for item in categories.dropped %}
+                        <div class="card card-custom mb-3">
+                            <div class="card-body">
+                                <div class="row align-items-center">
+                                    <div class="col-md-2">
+                                        {% if item.poster_path %}
+                                            <img src="https://image.tmdb.org/t/p/w185{{ item.poster_path }}" 
+                                                 alt="{{ item.title }}" class="img-fluid rounded" style="max-height: 150px;">
+                                        {% else %}
+                                            <div class="d-flex align-items-center justify-content-center bg-secondary text-white rounded" 
+                                                 style="height: 150px;">
+                                                {% if item.media_type == 'movie' %}
+                                                    <i class="fas fa-film fa-3x"></i>
+                                                {% else %}
+                                                    <i class="fas fa-tv fa-3x"></i>
+                                                {% endif %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-7">
+                                        <h5 class="card-title mb-2">
+                                            {% if item.media_type == 'movie' %}🎬{% else %}📺{% endif %}
+                                            {{ item.title }}
+                                            {% if item.year %}({{ item.year }}){% endif %}
+                                        </h5>
+                                        
+                                        {% if item.notes %}
+                                        <div class="mt-2">
+                                            <strong>📝 Notes:</strong> {{ item.notes }}
+                                        </div>
+                                        {% endif %}
+                                        
+                                        <small class="text-muted">Dropped: {{ item.added_date[:10] }}</small>
+                                    </div>
+                                    
+                                    <div class="col-md-3">
+                                        <div class="d-grid gap-2">
+                                            <a href="/details/{{ item.media_type }}/{{ item.id }}" class="btn btn-primary-custom btn-sm">
+                                                <i class="fas fa-eye"></i> VIEW DETAILS
+                                            </a>
+                                            
+                                            <button class="btn btn-outline-info btn-sm" onclick="editItem({{ item|tojson }}, 'dropped')">
+                                                <i class="fas fa-edit"></i> EDIT
+                                            </button>
+                                            
+                                            <button class="btn btn-outline-danger btn-sm" 
+                                                    onclick="removeFromWatchlist('{{ item.id }}', 'dropped')">
+                                                <i class="fas fa-trash"></i> REMOVE
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-times fa-4x text-muted mb-3"></i>
+                        <h4 class="text-muted">NO DROPPED ITEMS</h4>
+                        <p class="text-muted">Items you decided not to continue watching will appear here.</p>
+                    </div>
+                {% endif %}
+            </div>
+            
+            <!-- Favorites -->
+            <div class="tab-pane fade" id="favorites" role="tabpanel">
+                {% if categories.favorites %}
+                    <div class="watchlist-items">
+                        {% for item in categories.favorites %}
+                        <div class="card card-custom mb-3">
+                            <div class="card-body">
+                                <div class="row align-items-center">
+                                    <div class="col-md-2">
+                                        {% if item.poster_path %}
+                                            <img src="https://image.tmdb.org/t/p/w185{{ item.poster_path }}" 
+                                                 alt="{{ item.title }}" class="img-fluid rounded" style="max-height: 150px;">
+                                        {% else %}
+                                            <div class="d-flex align-items-center justify-content-center bg-secondary text-white rounded" 
+                                                 style="height: 150px;">
+                                                {% if item.media_type == 'movie' %}
+                                                    <i class="fas fa-film fa-3x"></i>
+                                                {% else %}
+                                                    <i class="fas fa-tv fa-3x"></i>
+                                                {% endif %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-7">
+                                        <h5 class="card-title mb-2">
+                                            💖 {{ item.title }}
+                                            {% if item.year %}({{ item.year }}){% endif %}
+                                        </h5>
+                                        
+                                        {% if item.genres %}
+                                        <div class="mb-2">
+                                            <strong>🎭 Genres:</strong>
+                                            {% for genre in item.genres[:5] %}
+                                                <span class="genre-badge">{{ genre }}</span>
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                        
+                                        {% if item.notes %}
+                                        <div class="mt-2">
+                                            <strong>📝 Notes:</strong> {{ item.notes }}
+                                        </div>
+                                        {% endif %}
+                                        
+                                        <small class="text-muted">Added to favorites: {{ item.added_date[:10] }}</small>
+                                    </div>
+                                    
+                                    <div class="col-md-3">
+                                        <div class="d-grid gap-2">
+                                            <a href="/details/{{ item.media_type }}/{{ item.id }}" class="btn btn-primary-custom btn-sm">
+                                                <i class="fas fa-eye"></i> VIEW DETAILS
+                                            </a>
+                                            
+                                            <button class="btn btn-outline-info btn-sm" onclick="editItem({{ item|tojson }}, 'favorites')">
+                                                <i class="fas fa-edit"></i> EDIT
+                                            </button>
+                                            
+                                            <button class="btn btn-outline-danger btn-sm" 
+                                                    onclick="removeFromWatchlist('{{ item.id }}', 'favorites')">
+                                                <i class="fas fa-trash"></i> REMOVE
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-heart fa-4x text-muted mb-3"></i>
+                        <h4 class="text-muted">NO FAVORITE ITEMS</h4>
+                        <p class="text-muted">Add your most loved movies and shows to favorites!</p>
+                        <a href="{{ url_for('search') }}" class="btn btn-primary-custom">
+                            <i class="fas fa-search"></i> SEARCH FOR CONTENT
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Item Modal -->
+<div class="modal fade" id="editItemModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title glow-text">✏️ EDIT ITEM</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="editItemContent">
+                <!-- Content loaded dynamically -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let editingItem = null;
+    
+    function editItem(item, listType) {
+        editingItem = { item, listType };
+        
+        const modal = new bootstrap.Modal(document.getElementById('editItemModal'));
+        const content = document.getElementById('editItemContent');
+        
+        content.innerHTML = `
+            <div class="row">
+                <div class="col-4">
+                    ${item.poster_path ? 
+                        `<img src="https://image.tmdb.org/t/p/w342${item.poster_path}" class="img-fluid rounded">` :
+                        `<div class="bg-secondary text-white d-flex align-items-center justify-content-center rounded" style="height: 200px;">
+                            <i class="fas fa-film fa-3x"></i>
+                        </div>`
+                    }
+                </div>
+                <div class="col-8">
+                    <h5>${item.title} ${item.year ? `(${item.year})` : ''}</h5>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Move to:</label>
+                        <select class="form-control" id="editListType">
+                            <option value="want_to_watch" ${listType === 'want_to_watch' ? 'selected' : ''}>⭐ Want to Watch</option>
+                            <option value="watching" ${listType === 'watching' ? 'selected' : ''}>📺 Currently Watching</option>
+                            <option value="completed" ${listType === 'completed' ? 'selected' : ''}>✅ Completed</option>
+                            <option value="dropped" ${listType === 'dropped' ? 'selected' : ''}>❌ Dropped</option>
+                            <option value="favorites" ${listType === 'favorites' ? 'selected' : ''}>💖 Favorites</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Notes:</label>
+                        <textarea class="form-control" id="editNotes" rows="3">${item.notes || ''}</textarea>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-between">
+                        <button type="button" class="btn btn-outline-danger" onclick="confirmRemoveItem()">
+                            🗑️ REMOVE
+                        </button>
+                        <div>
+                            <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">CANCEL</button>
+                            <button type="button" class="btn btn-primary-custom" onclick="saveItemChanges()">
+                                💾 SAVE CHANGES
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        modal.show();
+    }
+    
+    async function saveItemChanges() {
+        const newListType = document.getElementById('editListType').value;
+        const notes = document.getElementById('editNotes').value;
+        
+        showLoading();
+        
+        try {
+            // If moving to different list, remove from current and add to new
+            if (newListType !== editingItem.listType) {
+                // Remove from current list
+                await fetch('/api/remove_from_watchlist', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        item_id: editingItem.item.id,
+                        list_type: editingItem.listType
+                    })
+                });
+                
+                // Add to new list
+                await addToWatchlist(editingItem.item, newListType, 0, notes);
+            } else {
+                // Just update notes
+                await fetch('/api/update_rating', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        item_id: editingItem.item.id,
+                        list_type: editingItem.listType,
+                        rating: 0,
+                        notes: notes
+                    })
+                });
+            }
+            
+            // Hide modal and reload page
+            const modal = bootstrap.Modal.getInstance(document.getElementById('editItemModal'));
+            modal.hide();
+            setTimeout(() => location.reload(), 1000);
+            
+        } catch (error) {
+            showToast('Error saving changes', 'error');
+            console.error('Error:', error);
+        }
+        
+        hideLoading();
+    }
+    
+    async function confirmRemoveItem() {
+        if (!confirm(`Are you sure you want to remove "${editingItem.item.title}" from your watchlist?`)) {
+            return;
+        }
+        
+        await removeFromWatchlist(editingItem.item.id, editingItem.listType);
+        
+        const modal = bootstrap.Modal.getInstance(document.getElementById('editItemModal'));
+        modal.hide();
+    }
+    
+    // Add entrance animations
+    document.addEventListener('DOMContentLoaded', function() {
+        const cards = document.querySelectorAll('.card-custom');
+        cards.forEach((card, index) => {
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(30px)';
+            
+            setTimeout(() => {
+                card.style.transition = 'all 0.6s ease';
+                card.style.opacity = '1';
+                card.style.transform = 'translateY(0)';
+            }, index * 50);
+        });
+        
+        // Add sparkle effect to stats cards
+        const statsCards = document.querySelectorAll('.stats-card');
+        statsCards.forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-8px) rotateY(5deg)';
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0) rotateY(0deg)';
+            });
+        });
+    });
+</script>
+{% endblock %}

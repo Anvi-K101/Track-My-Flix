@@ -1,0 +1,474 @@
+{% extends "base.html" %}
+
+{% block title %}Viewing Scheduler - {{ media.title or media.name }}{% endblock %}
+
+{% block content %}
+<div class="search-container text-white mb-4">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h1 class="display-5 fw-bold glow-text">📅 SMART VIEWING SCHEDULER</h1>
+            <h3 class="mb-0" style="color: var(--text-primary);">{{ media.title or media.name }}</h3>
+            {% if media.release_date or media.first_air_date %}
+                <p class="lead mb-0" style="color: var(--text-secondary);">({{ (media.release_date or media.first_air_date)[:4] }})</p>
+            {% endif %}
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="/details/{{ media.media_type }}/{{ media.id }}" class="btn btn-outline-primary">
+                <i class="fas fa-arrow-left"></i> BACK TO DETAILS
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- FIXED: Runtime Overview with accurate calculations -->
+<div class="row mb-4">
+    {% if media.media_type == 'movie' %}
+    <div class="col-md-3">
+        <div class="stats-card pulse-on-hover">
+            <h3 style="color: var(--primary-color);">{{ format_time(total_runtime) }}</h3>
+            <p style="color: var(--text-primary);">⏰ TOTAL RUNTIME</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card pulse-on-hover">
+            <h3 style="color: var(--secondary-color);">{{ "%.1f"|format(total_runtime / 60) }}h</h3>
+            <p style="color: var(--text-primary);">🕐 HOURS</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card pulse-on-hover">
+            <h3 style="color: var(--accent-color);">{{ total_runtime }}</h3>
+            <p style="color: var(--text-primary);">📊 MINUTES</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card pulse-on-hover">
+            <h3 style="color: var(--lavender);">MOVIE</h3>
+            <p style="color: var(--text-primary);">🎭 TYPE</p>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-md-3">
+        <div class="stats-card pulse-on-hover">
+            <h3 style="color: var(--primary-color);">{{ media.number_of_seasons or 0 }}</h3>
+            <p style="color: var(--text-primary);">📺 SEASONS</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card pulse-on-hover">
+            <h3 style="color: var(--secondary-color);">{{ media.number_of_episodes or 0 }}</h3>
+            <p style="color: var(--text-primary);">📋 EPISODES</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card pulse-on-hover">
+            <h3 style="color: var(--accent-color);">{{ format_time(total_runtime) }}</h3>
+            <p style="color: var(--text-primary);">⏰ TOTAL RUNTIME</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card pulse-on-hover">
+            {% set avg_episode = (total_runtime // (media.number_of_episodes or 1)) %}
+            <h3 style="color: var(--lavender);">{{ format_time(avg_episode) }}</h3>
+            <p style="color: var(--text-primary);">📊 AVG EPISODE</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- FIXED: Scheduling Interface -->
+<div class="row">
+    <div class="col-md-8">
+        <div class="card card-custom">
+            <div class="card-header">
+                <h5 class="mb-0 glow-text" style="color: var(--text-primary);">CREATE YOUR VIEWING SCHEDULE</h5>
+            </div>
+            <div class="card-body">
+                <!-- Progress Input -->
+                <div class="mb-4">
+                    <h6 class="glow-text" style="color: var(--text-primary);">CURRENT PROGRESS</h6>
+                    {% if media.media_type == 'tv' %}
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label" style="color: var(--text-primary);">Current Season:</label>
+                            <select class="form-control" id="currentSeason" onchange="updateProgressDisplay()">
+                                <option value="1">Season 1</option>
+                                {% for i in range(2, (media.number_of_seasons or 1) + 1) %}
+                                <option value="{{ i }}">Season {{ i }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" style="color: var(--text-primary);">Current Episode:</label>
+                            <select class="form-control" id="currentEpisode" onchange="updateProgressDisplay()">
+                                <option value="0">Not started</option>
+                                {% for i in range(1, 21) %}
+                                <option value="{{ i }}">Episode {{ i }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="row">
+                        <div class="col-md-12">
+                            <label class="form-label" style="color: var(--text-primary);">Minutes Already Watched:</label>
+                            <input type="number" class="form-control" id="watchedMinutes" min="0" max="{{ total_runtime }}" value="0" onchange="updateProgressDisplay()">
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Scheduling Inputs -->
+                <div class="mb-4">
+                    <h6 class="glow-text" style="color: var(--text-primary);">VIEWING SCHEDULE</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label" style="color: var(--text-primary);">Days per Week:</label>
+                            <input type="number" class="form-control" id="daysPerWeek" min="1" max="7" value="3">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" style="color: var(--text-primary);">Hours per Session:</label>
+                            <input type="number" class="form-control" id="hoursPerSession" min="0.5" max="12" step="0.5" value="2">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Calculate Button -->
+                <div class="text-center mb-4">
+                    <button class="btn btn-primary-custom btn-lg" onclick="calculateSchedule()">
+                        <i class="fas fa-calculator"></i> CALCULATE SCHEDULE
+                    </button>
+                </div>
+                
+                <!-- Schedule Results -->
+                <div id="scheduleResults" style="display: none;">
+                    <!-- Results displayed here -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <!-- Current Progress Display -->
+        <div class="card card-custom mb-4">
+            <div class="card-header">
+                <h5 class="mb-0 glow-text" style="color: var(--text-primary);">PROGRESS OVERVIEW</h5>
+            </div>
+            <div class="card-body">
+                <div class="text-center">
+                    <div class="progress mb-3" style="height: 25px; border-radius: 15px;">
+                        <div class="progress-bar" id="mainProgressBar" 
+                             role="progressbar" style="width: 0%;">
+                            <span id="progressText" style="color: var(--bg-primary); font-weight: bold;">0%</span>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="stats-card">
+                                <h5 id="remainingTime" style="color: var(--accent-color);">{{ format_time(total_runtime) }}</h5>
+                                <p style="color: var(--text-primary);">REMAINING</p>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="stats-card">
+                                <h5 id="watchedTime" style="color: var(--primary-color);">0m</h5>
+                                <p style="color: var(--text-primary);">WATCHED</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Tips -->
+        <div class="card card-custom">
+            <div class="card-header">
+                <h5 class="mb-0 glow-text" style="color: var(--text-primary);">SCHEDULING TIPS</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled" style="color: var(--text-primary);">
+                    <li class="mb-2">🕐 <strong>Optimal viewing:</strong> 1-3 hours per session</li>
+                    <li class="mb-2">📅 <strong>Consistency:</strong> Regular schedule works best</li>
+                    <li class="mb-2">⏰ <strong>Buffer time:</strong> Add 10-15 min between episodes</li>
+                    {% if media.media_type == 'tv' %}
+                    <li class="mb-2">📺 <strong>Season breaks:</strong> Take breaks between seasons</li>
+                    <li class="mb-2">🎭 <strong>Cliffhangers:</strong> Plan extra time for finales</li>
+                    {% endif %}
+                    <li class="mb-2">🥤 <strong>Health breaks:</strong> Stay hydrated and stretch</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const mediaData = {{ media|tojson }};
+    const seasonData = {{ season_data|tojson if season_data else '[]' }};
+    const totalRuntime = {{ total_runtime }};
+    let currentSchedule = null;
+    
+    // Initialize display
+    document.addEventListener('DOMContentLoaded', function() {
+        updateProgressDisplay();
+    });
+    
+    function updateProgressDisplay() {
+        let watchedMinutes = 0;
+        
+        if (mediaData.media_type === 'tv') {
+            const currentSeason = parseInt(document.getElementById('currentSeason')?.value || 1);
+            const currentEpisode = parseInt(document.getElementById('currentEpisode')?.value || 0);
+            
+            // Calculate watched minutes from season/episode data
+            for (let i = 1; i < currentSeason; i++) {
+                const season = seasonData.find(s => s.season_number === i);
+                if (season) {
+                    watchedMinutes += season.total_runtime;
+                } else {
+                    watchedMinutes += 20 * 45; // Estimate: 20 episodes * 45 minutes
+                }
+            }
+            
+            // Add episodes from current season
+            const currentSeasonInfo = seasonData.find(s => s.season_number === currentSeason);
+            if (currentSeasonInfo && currentSeasonInfo.episodes) {
+                for (let i = 1; i < currentEpisode; i++) {
+                    const episode = currentSeasonInfo.episodes.find(e => e.episode_number === i);
+                    watchedMinutes += episode ? episode.runtime : 45;
+                }
+            } else {
+                // Estimate if no season data
+                watchedMinutes += (currentEpisode - 1) * 45;
+            }
+            
+            // Update episode options based on season
+            const episodeSelect = document.getElementById('currentEpisode');
+            const maxEpisodes = currentSeasonInfo ? currentSeasonInfo.episode_count : 20;
+            
+            episodeSelect.innerHTML = '<option value="0">Not started</option>';
+            for (let i = 1; i <= maxEpisodes; i++) {
+                const selected = i === parseInt(episodeSelect.value) ? 'selected' : '';
+                episodeSelect.innerHTML += `<option value="${i}" ${selected}>Episode ${i}</option>`;
+            }
+        } else {
+            watchedMinutes = parseInt(document.getElementById('watchedMinutes')?.value || 0);
+        }
+        
+        const remaining = totalRuntime - watchedMinutes;
+        const percent = totalRuntime > 0 ? (watchedMinutes / totalRuntime * 100) : 0;
+        
+        document.getElementById('mainProgressBar').style.width = percent + '%';
+        document.getElementById('progressText').textContent = Math.round(percent) + '%';
+        document.getElementById('watchedTime').textContent = formatTime(watchedMinutes);
+        document.getElementById('remainingTime').textContent = formatTime(remaining);
+    }
+    
+    async function calculateSchedule() {
+        let watchedMinutes = 0;
+        
+        if (mediaData.media_type === 'tv') {
+            const currentSeason = parseInt(document.getElementById('currentSeason').value);
+            const currentEpisode = parseInt(document.getElementById('currentEpisode').value) || 0;
+            
+            // Calculate watched minutes same as updateProgressDisplay
+            for (let i = 1; i < currentSeason; i++) {
+                const season = seasonData.find(s => s.season_number === i);
+                if (season) {
+                    watchedMinutes += season.total_runtime;
+                } else {
+                    watchedMinutes += 20 * 45;
+                }
+            }
+            
+            const currentSeasonInfo = seasonData.find(s => s.season_number === currentSeason);
+            if (currentSeasonInfo && currentSeasonInfo.episodes) {
+                for (let i = 1; i < currentEpisode; i++) {
+                    const episode = currentSeasonInfo.episodes.find(e => e.episode_number === i);
+                    watchedMinutes += episode ? episode.runtime : 45;
+                }
+            } else {
+                watchedMinutes += (currentEpisode - 1) * 45;
+            }
+        } else {
+            watchedMinutes = parseInt(document.getElementById('watchedMinutes').value) || 0;
+        }
+        
+        const daysPerWeek = parseInt(document.getElementById('daysPerWeek').value) || 3;
+        const hoursPerSession = parseFloat(document.getElementById('hoursPerSession').value) || 2;
+        
+        const scheduleData = {
+            total_minutes: totalRuntime,
+            watched_minutes: watchedMinutes,
+            days_per_week: daysPerWeek,
+            hours_per_session: hoursPerSession
+        };
+        
+        showLoading();
+        
+        try {
+            const response = await fetch('/api/calculate_schedule', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(scheduleData)
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                displayScheduleResults(result);
+                currentSchedule = result;
+            } else {
+                showToast('Error calculating schedule: ' + result.message, 'error');
+            }
+        } catch (error) {
+            showToast('Error calculating schedule', 'error');
+            console.error('Error:', error);
+        }
+        
+        hideLoading();
+    }
+    
+    function displayScheduleResults(schedule) {
+        const resultsDiv = document.getElementById('scheduleResults');
+        
+        const html = `
+            <div class="alert alert-success">
+                <h5 class="alert-heading glow-text" style="color: var(--text-primary);">📅 YOUR VIEWING SCHEDULE</h5>
+            </div>
+            
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <h4 style="color: var(--primary-color);">${schedule.schedule.sessions_needed}</h4>
+                        <p style="color: var(--text-primary);">SESSIONS NEEDED</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <h4 style="color: var(--secondary-color);">${schedule.schedule.weeks_to_complete}</h4>
+                        <p style="color: var(--text-primary);">WEEKS TO FINISH</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <h4 style="color: var(--accent-color);">${schedule.schedule.remaining_hours}h</h4>
+                        <p style="color: var(--text-primary);">HOURS LEFT</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <h4 style="color: var(--lavender);">${schedule.schedule.finish_date}</h4>
+                        <p style="color: var(--text-primary);">FINISH DATE</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card card-custom">
+                <div class="card-header">
+                    <h6 class="mb-0 glow-text" style="color: var(--text-primary);">📊 SCHEDULE BREAKDOWN</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 style="color: var(--text-primary);">📅 Your Schedule:</h6>
+                            <ul class="list-unstyled" style="color: var(--text-secondary);">
+                                <li><strong>Days per week:</strong> ${schedule.schedule.days_per_week}</li>
+                                <li><strong>Hours per session:</strong> ${schedule.schedule.hours_per_session}</li>
+                                <li><strong>Total sessions:</strong> ${schedule.schedule.sessions_needed}</li>
+                                <li><strong>Progress:</strong> ${schedule.schedule.progress_percentage}% complete</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 style="color: var(--text-primary);">⏰ Time Breakdown:</h6>
+                            <ul class="list-unstyled" style="color: var(--text-secondary);">
+                                <li><strong>Already watched:</strong> ${formatTime(schedule.schedule.watched_minutes)}</li>
+                                <li><strong>Remaining:</strong> ${formatTime(schedule.schedule.remaining_minutes)}</li>
+                                <li><strong>Hours left:</strong> ${schedule.schedule.remaining_hours}h</li>
+                                <li><strong>Expected finish:</strong> ${schedule.schedule.finish_date}</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4 text-center">
+                <button class="btn btn-success me-2" onclick="exportSchedule()">
+                    📤 EXPORT SCHEDULE
+                </button>
+                <button class="btn btn-outline-info" onclick="saveSchedule()">
+                    💾 SAVE SCHEDULE
+                </button>
+            </div>
+        `;
+        
+        resultsDiv.innerHTML = html;
+        resultsDiv.style.display = 'block';
+        
+        // Scroll to results
+        resultsDiv.scrollIntoView({ behavior: 'smooth' });
+    }
+    
+    function exportSchedule() {
+        if (!currentSchedule) return;
+        
+        const scheduleText = `
+VIEWING SCHEDULE FOR ${mediaData.title || mediaData.name}
+===============================================
+
+Total Runtime: ${formatTime(totalRuntime)}
+Already Watched: ${formatTime(currentSchedule.schedule.watched_minutes)}
+Remaining: ${formatTime(currentSchedule.schedule.remaining_minutes)}
+Progress: ${currentSchedule.schedule.progress_percentage}%
+
+SCHEDULE DETAILS:
+- Days per week: ${currentSchedule.schedule.days_per_week}
+- Hours per session: ${currentSchedule.schedule.hours_per_session}
+- Sessions needed: ${currentSchedule.schedule.sessions_needed}
+- Weeks to complete: ${currentSchedule.schedule.weeks_to_complete}
+- Expected finish date: ${currentSchedule.schedule.finish_date}
+
+Generated by FlixTracker
+        `.trim();
+        
+        const blob = new Blob([scheduleText], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${(mediaData.title || mediaData.name).replace(/[^a-zA-Z0-9]/g, '_')}_schedule.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        showToast('Schedule exported successfully!', 'success');
+    }
+    
+    function saveSchedule() {
+        if (!currentSchedule) return;
+        
+        const scheduleData = {
+            media: mediaData,
+            schedule: currentSchedule,
+            created: new Date().toISOString()
+        };
+        
+        // Save to session storage simulation
+        console.log('Schedule saved:', scheduleData);
+        showToast('Schedule saved to session!', 'success');
+    }
+    
+    // Helper function for time formatting
+    function formatTime(minutes) {
+        if (!minutes || minutes <= 0) return '0m';
+        if (minutes < 60) return `${minutes}m`;
+        const hours = Math.floor(minutes / 60);
+        const mins = minutes % 60;
+        return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+    }
+</script>
+{% endblock %}

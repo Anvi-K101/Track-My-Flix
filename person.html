@@ -1,0 +1,317 @@
+<!-- templates/person.html -->
+{% extends "base.html" %}
+
+{% block title %}👤 {{ person.name or 'Unknown Person' }} - Ultimate Entertainment Hub{% endblock %}
+
+{% block content %}
+<!-- Hero Section with Person Profile -->
+<div class="hero-section mb-4" style="
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 15px;
+    padding: 60px 40px;
+    color: white;
+">
+    <div class="row align-items-center">
+        <div class="col-md-3">
+            {% if person.profile_path %}
+                <img src="https://image.tmdb.org/t/p/w342{{ person.profile_path }}" 
+                     alt="{{ person.name or 'Unknown' }}" class="img-fluid rounded-circle" 
+                     style="width: 200px; height: 200px; object-fit: cover; border: 4px solid rgba(255,255,255,0.3);">
+            {% else %}
+                <div class="d-flex align-items-center justify-content-center bg-light rounded-circle mx-auto" 
+                     style="width: 200px; height: 200px;">
+                    <i class="fas fa-user fa-5x text-secondary"></i>
+                </div>
+            {% endif %}
+        </div>
+        <div class="col-md-9">
+            <h1 class="display-4 fw-bold mb-2">👤 {{ person.name or 'Unknown Person' }}</h1>
+            {% if person.known_for_department %}
+                <h3 class="mb-3 opacity-75">{{ person.known_for_department }}</h3>
+            {% endif %}
+            
+            <div class="row">
+                {% if person.birthday %}
+                <div class="col-md-4">
+                    <strong>🎂 Born:</strong> {{ person.birthday }}
+                    {% if person.place_of_birth %}
+                        <br><small>📍 {{ person.place_of_birth }}</small>
+                    {% endif %}
+                </div>
+                {% endif %}
+                
+                {% if person.deathday %}
+                <div class="col-md-4">
+                    <strong>💐 Died:</strong> {{ person.deathday }}
+                </div>
+                {% endif %}
+                
+                {% if person.popularity %}
+                <div class="col-md-4">
+                    <strong>⭐ Popularity:</strong> {{ "%.1f"|format(person.popularity) }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Content -->
+<div class="row">
+    <!-- Left Column - Biography and Details -->
+    <div class="col-lg-8">
+        {% if person.biography %}
+        <div class="card card-custom mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">📖 Biography</h5>
+            </div>
+            <div class="card-body">
+                <div id="biography-short">
+                    <p>{{ person.biography[:500] }}{% if person.biography|length > 500 %}...{% endif %}</p>
+                    {% if person.biography|length > 500 %}
+                        <button class="btn btn-outline-primary btn-sm" onclick="toggleBiography()">
+                            📚 Read More
+                        </button>
+                    {% endif %}
+                </div>
+                {% if person.biography|length > 500 %}
+                <div id="biography-full" style="display: none;">
+                    <p>{{ person.biography }}</p>
+                    <button class="btn btn-outline-primary btn-sm" onclick="toggleBiography()">
+                        📖 Show Less
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Movie Credits -->
+        {% if movie_credits %}
+        <div class="card card-custom mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">🎬 Movie Credits ({{ movie_credits|length }})</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for movie in movie_credits %}
+                    <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
+                        <div class="card card-custom h-100">
+                            <div class="poster-container">
+                                {% if movie.poster_path %}
+                                    <img src="https://image.tmdb.org/t/p/w342{{ movie.poster_path }}" 
+                                         alt="{{ movie.title or 'Unknown Movie' }}" class="card-img-top">
+                                {% else %}
+                                    <div class="d-flex align-items-center justify-content-center h-100 bg-secondary text-white">
+                                        <i class="fas fa-film fa-2x"></i>
+                                    </div>
+                                {% endif %}
+                                
+                                <div class="action-buttons">
+                                    <a href="/details/movie/{{ movie.id }}" class="btn btn-sm btn-primary w-100">
+                                        <i class="fas fa-eye"></i> View
+                                    </a>
+                                </div>
+                            </div>
+                            
+                            <div class="card-body p-2">
+                                <h6 class="card-title mb-1 small">{{ (movie.title or 'Unknown')[:15] }}{% if (movie.title or '')|length > 15 %}...{% endif %}</h6>
+                                {% if movie.character %}
+                                    <small class="text-muted">as {{ movie.character[:20] }}{% if movie.character|length > 20 %}...{% endif %}</small>
+                                {% endif %}
+                                {% if movie.release_date %}
+                                    <br><small class="text-primary">📅 {{ movie.release_date[:4] }}</small>
+                                {% endif %}
+                                {% if movie.vote_average and movie.vote_average > 0 %}
+                                    <br><small class="rating-badge">⭐ {{ "%.1f"|format(movie.vote_average) }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- TV Credits -->
+        {% if tv_credits %}
+        <div class="card card-custom">
+            <div class="card-header">
+                <h5 class="mb-0">📺 TV Credits ({{ tv_credits|length }})</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for show in tv_credits %}
+                    <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
+                        <div class="card card-custom h-100">
+                            <div class="poster-container">
+                                {% if show.poster_path %}
+                                    <img src="https://image.tmdb.org/t/p/w342{{ show.poster_path }}" 
+                                         alt="{{ show.name or 'Unknown Show' }}" class="card-img-top">
+                                {% else %}
+                                    <div class="d-flex align-items-center justify-content-center h-100 bg-secondary text-white">
+                                        <i class="fas fa-tv fa-2x"></i>
+                                    </div>
+                                {% endif %}
+                                
+                                <div class="action-buttons">
+                                    <a href="/details/tv/{{ show.id }}" class="btn btn-sm btn-primary w-100">
+                                        <i class="fas fa-eye"></i> View
+                                    </a>
+                                </div>
+                            </div>
+                            
+                            <div class="card-body p-2">
+                                <h6 class="card-title mb-1 small">{{ (show.name or 'Unknown')[:15] }}{% if (show.name or '')|length > 15 %}...{% endif %}</h6>
+                                {% if show.character %}
+                                    <small class="text-muted">as {{ show.character[:20] }}{% if show.character|length > 20 %}...{% endif %}</small>
+                                {% endif %}
+                                {% if show.first_air_date %}
+                                    <br><small class="text-primary">📅 {{ show.first_air_date[:4] }}</small>
+                                {% endif %}
+                                {% if show.vote_average and show.vote_average > 0 %}
+                                    <br><small class="rating-badge">⭐ {{ "%.1f"|format(show.vote_average) }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Right Column - Quick Facts -->
+    <div class="col-lg-4">
+        <!-- Quick Facts -->
+        <div class="card card-custom mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">📊 Quick Facts</h5>
+            </div>
+            <div class="card-body">
+                {% if person.birthday %}
+                <div class="mb-3">
+                    <strong>🎂 Birthday:</strong><br>
+                    {{ person.birthday }}
+                    {% if person.birthday and not person.deathday %}
+                        {% set birth_year = person.birthday[:4]|int %}
+                        {% set current_year = 2025 %}
+                        <br><small class="text-muted">Age: {{ current_year - birth_year }}</small>
+                    {% endif %}
+                </div>
+                {% endif %}
+                
+                {% if person.place_of_birth %}
+                <div class="mb-3">
+                    <strong>📍 Place of Birth:</strong><br>
+                    {{ person.place_of_birth }}
+                </div>
+                {% endif %}
+                
+                {% if person.known_for_department %}
+                <div class="mb-3">
+                    <strong>🎭 Known For:</strong><br>
+                    {{ person.known_for_department }}
+                </div>
+                {% endif %}
+                
+                {% if person.also_known_as %}
+                <div class="mb-3">
+                    <strong>🏷️ Also Known As:</strong><br>
+                    {% for alias in person.also_known_as[:3] %}
+                        <span class="genre-badge">{{ alias }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                {% if person.popularity %}
+                <div class="mb-3">
+                    <strong>⭐ Popularity Score:</strong><br>
+                    {{ "%.1f"|format(person.popularity) }}
+                    <div class="progress mt-2">
+                        <div class="progress-bar progress-bar-custom" 
+                             style="width: {{ (person.popularity / 100 * 100)|min(100) }}%"></div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- External Links -->
+        <div class="card card-custom">
+            <div class="card-header">
+                <h5 class="mb-0">🔗 External Links</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="https://www.themoviedb.org/person/{{ person.id }}" 
+                       target="_blank" class="btn btn-outline-primary btn-sm">
+                        🎬 TMDb Profile
+                    </a>
+                    
+                    {% if person.imdb_id %}
+                    <a href="https://www.imdb.com/name/{{ person.imdb_id }}" 
+                       target="_blank" class="btn btn-outline-warning btn-sm">
+                        📽️ IMDb Profile
+                    </a>
+                    {% endif %}
+                    
+                    <button class="btn btn-outline-success btn-sm" onclick="shareProfile()">
+                        📤 Share Profile
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const personData = {{ person|tojson }};
+    
+    function toggleBiography() {
+        const shortDiv = document.getElementById('biography-short');
+        const fullDiv = document.getElementById('biography-full');
+        
+        if (shortDiv && fullDiv) {
+            if (shortDiv.style.display === 'none') {
+                shortDiv.style.display = 'block';
+                fullDiv.style.display = 'none';
+            } else {
+                shortDiv.style.display = 'none';
+                fullDiv.style.display = 'block';
+            }
+        }
+    }
+    
+    function shareProfile() {
+        if (navigator.share) {
+            navigator.share({
+                title: `${personData.name || 'Person'} - Actor Profile`,
+                text: `Check out ${personData.name || 'this person'}'s profile on Ultimate Entertainment Hub`,
+                url: window.location.href
+            });
+        } else {
+            // Fallback - copy to clipboard
+            navigator.clipboard.writeText(window.location.href).then(() => {
+                showToast('Profile link copied to clipboard!', 'success');
+            }).catch(() => {
+                showToast('Could not copy link', 'error');
+            });
+        }
+    }
+    
+    // Add smooth animations
+    document.addEventListener('DOMContentLoaded', function() {
+        const cards = document.querySelectorAll('.card-custom');
+        cards.forEach((card, index) => {
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(20px)';
+            
+            setTimeout(() => {
+                card.style.transition = 'all 0.5s ease';
+                card.style.opacity = '1';
+                card.style.transform = 'translateY(0
